@@ -1,8 +1,11 @@
 package com.thulawa.kafka.internals.processor;
 
-import com.thulawa.kafka.internals.storage.Queue;
+import com.thulawa.kafka.internals.helpers.BatchWorkerThreadPool;
+import com.thulawa.kafka.internals.storage.KeyBasedQueue;
 import org.apache.kafka.streams.processor.api.Processor;
 import org.apache.kafka.streams.processor.api.Record;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -10,26 +13,40 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class BatchProcessor<KIn, VIn, KOut, VOut> implements Processor<KIn, VIn, KOut, VOut> {
 
-    private final Map<String, Queue> queues = new ConcurrentHashMap<>(); // Stores queues based on unique names
-    private final AtomicInteger nullQueueCounter = new AtomicInteger(0); // Counter for null key queues
+    private static final Logger logger = LoggerFactory.getLogger(BatchProcessor.class);
+
+    private final Map<String, KeyBasedQueue> queues = new ConcurrentHashMap<>();
+    private final AtomicInteger nullQueueCounter = new AtomicInteger(0);
+    private final AtomicInteger counter = new AtomicInteger(0);
+
+    private final BatchWorkerThreadPool threadPool;
+
+    public BatchProcessor() {
+        // Initialize the thread pool with 4 workers and a task queue of size 100
+        threadPool = new BatchWorkerThreadPool(4, 100);
+    }
 
     @Override
     public void process(Record<KIn, VIn> record) {
 
-        String queueName;
-        if (record.key() == null) {
-            queueName = "null_queue_" + nullQueueCounter.incrementAndGet();
-        } else {
-            queueName = "queue_" + record.key().toString();
-        }
 
-        // Retrieve or create the queue
-        Queue queue = queues.computeIfAbsent(queueName, k -> new Queue());
 
-        // Add the record to the queue
-        queue.add(record);
 
-        // (Optional) Keep track of record counts or perform other logic here
 
+    }
+
+    private synchronized void processQueues() {
+        queues.values().forEach(q -> {
+            while (!q.isEmpty()) {
+                logger.info("Processed Value: {}", q.poll());
+            }
+        });
+        counter.set(0); // Reset counter
+    }
+
+    @Override
+    public void close() {
+        // Shut down the thread pool
+        threadPool.shutdown();
     }
 }
