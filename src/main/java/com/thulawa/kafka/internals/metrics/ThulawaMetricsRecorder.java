@@ -1,13 +1,13 @@
 package com.thulawa.kafka.internals.metrics;
 
 import org.apache.kafka.common.MetricName;
-import org.apache.kafka.common.metrics.Measurable;
 import org.apache.kafka.common.metrics.Sensor;
 import org.apache.kafka.common.metrics.stats.Value;
 
 import java.util.LinkedHashMap;
-import java.util.Map;
 
+// Have to properly update the metrics exposing with a proper design pattern
+// This is temporary, and will be updated in the later enhancements
 public class ThulawaMetricsRecorder {
 
     public static final String GROUP_NAME = "thulawa-metrics";
