@@ -11,14 +11,14 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * i.e. Have to optimize more, should focus on other queue methods and interfacing. As of writing this, this is the
  * initial implementation.
  *
- * @param <K> The type of the key associated with this queue.
+ * Better to take Metrics to a map in QueueManager!!!!
  */
-public class KeyBasedQueue<K> {
+public class KeyBasedQueue {
 
-    private final K recordKey;
+    private final String recordKey;
 
     private final ConcurrentLinkedQueue<Record> recordsQueue;
-    private ThulawaMetricsRecorder thulawaMetricsRecorder;
+//    private ThulawaMetricsRecorder thulawaMetricsRecorder;
 
     /**
      * Constructor for the KeyBasedQueue class.
@@ -26,7 +26,7 @@ public class KeyBasedQueue<K> {
      *
      * @param recordKey The key associated with this queue.
      */
-    KeyBasedQueue(K recordKey) {
+    public KeyBasedQueue(String recordKey) {
         this.recordsQueue = new ConcurrentLinkedQueue<>();
         this.recordKey = recordKey;
     }
@@ -38,7 +38,7 @@ public class KeyBasedQueue<K> {
      */
     public void add(Record record) {
         recordsQueue.offer(record);
-        this.thulawaMetricsRecorder.updateKeyBasedQueueSizes(this.size());
+//        this.thulawaMetricsRecorder.updateKeyBasedQueueSizes(this.size());
     }
 
     /**
