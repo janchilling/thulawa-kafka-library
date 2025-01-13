@@ -1,7 +1,14 @@
 package com.thulawa.kafka.internals.helpers;
 
+import com.thulawa.kafka.ThulawaTaskManager;
+import com.thulawa.kafka.internals.processor.ThulawaProcessor;
 import com.thulawa.kafka.internals.storage.KeyBasedQueue;
+import com.thulawa.kafka.scheduler.Scheduler;
+import com.thulawa.kafka.scheduler.ThulawaScheduler;
+import org.apache.kafka.streams.processor.api.Processor;
 import org.apache.kafka.streams.processor.api.Record;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -11,6 +18,10 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class QueueManager {
 
+    private static final Logger logger = LoggerFactory.getLogger(QueueManager.class);
+
+    private static QueueManager instance;
+
     private static final String NULL_KEY_QUEUE = "__NULL_KEY__";
 
     // Map to hold queues for each key
@@ -19,7 +30,16 @@ public class QueueManager {
     // Map to track the size of each queue
     private final Map<String, Integer> queueSizeMap = new ConcurrentHashMap<>();
 
-    public QueueManager() {
+    private Scheduler schedulerObserver;
+
+    private QueueManager() {
+    }
+
+    public static synchronized QueueManager getInstance() {
+        if (instance == null) {
+            instance = new QueueManager();
+        }
+        return instance;
     }
 
     /**
@@ -34,6 +54,11 @@ public class QueueManager {
         queues.computeIfAbsent(queueKey, k -> new KeyBasedQueue(key));
         queues.get(queueKey).add(record);
         updateQueueSizeMap(queueKey);
+
+        // Notify observer if scheduler is not ACTIVE
+        if (schedulerObserver != null && !schedulerObserver.isActive()) {
+            schedulerObserver.notifyScheduler();
+        }
     }
 
     /**
@@ -98,6 +123,15 @@ public class QueueManager {
      */
     public int getAvailableRecordsInQueuesSize() {
         return queueSizeMap.values().stream().mapToInt(Integer::intValue).sum();
+    }
+
+    /**
+     * Sets the observer for the QueueManager.
+     *
+     * @param observer The scheduler observer.
+     */
+    public void setSchedulerObserver(Scheduler observer) {
+        this.schedulerObserver = observer;
     }
 
 }

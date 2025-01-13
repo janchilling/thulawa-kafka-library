@@ -1,12 +1,37 @@
 package com.thulawa.kafka.internals.helpers;
 
+import com.thulawa.kafka.internals.processor.ThulawaProcessor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.Map;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class ThreadPoolRegistry {
 
+    private static final Logger logger = LoggerFactory.getLogger(ThreadPoolRegistry.class);
+
+    private static ThreadPoolRegistry instance;
+
+    public static final String THULAWA_MAIN_THREAD_POOL = "Thulawa-Main-Thread-Pool";
+    public static final String HIGH_PRIORITY_THREAD_POOL = "High-Priority-Thread-Pool";
+    public static final String LOW_PRIORITY_THREAD_POOL = "Low-Priority-Thread-Pool";
+
     private final Map<String, ThreadPoolExecutor> threadPools = new ConcurrentHashMap<>();
+
+    private ThreadPoolRegistry() {
+        this.registerThreadPool(THULAWA_MAIN_THREAD_POOL, 1, 2);
+        this.registerThreadPool(HIGH_PRIORITY_THREAD_POOL, 1, 2);
+        this.registerThreadPool(LOW_PRIORITY_THREAD_POOL, 1, 2);
+    }
+
+    public static synchronized ThreadPoolRegistry getInstance() {
+        if (instance == null) {
+            instance = new ThreadPoolRegistry();
+        }
+        return instance;
+    }
 
     /**
      * Creates and registers a thread pool with the given name, pool size, and queue size.
