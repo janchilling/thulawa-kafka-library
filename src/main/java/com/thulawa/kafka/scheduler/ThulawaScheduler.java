@@ -4,6 +4,9 @@ import com.thulawa.kafka.ThulawaTask;
 import com.thulawa.kafka.ThulawaTaskManager;
 import com.thulawa.kafka.internals.helpers.QueueManager;
 import com.thulawa.kafka.internals.helpers.ThreadPoolRegistry;
+import com.thulawa.kafka.internals.metrics.ThulawaMetrics;
+import org.apache.kafka.common.metrics.Metrics;
+import org.apache.kafka.streams.StreamsMetrics;
 import org.apache.kafka.streams.processor.api.Processor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,21 +26,26 @@ public class ThulawaScheduler implements Scheduler{
     private final ThulawaTaskManager thulawaTaskManager;
     private final Processor processor;
 
+    private final ThulawaMetrics thulawaMetrics;
+
     private State state;
 
-    private ThulawaScheduler(QueueManager queueManager, ThreadPoolRegistry threadPoolRegistry, ThulawaTaskManager thulawaTaskManager, Processor processor) {
+    private ThulawaScheduler(QueueManager queueManager, ThreadPoolRegistry threadPoolRegistry, ThulawaTaskManager thulawaTaskManager,
+                             ThulawaMetrics thulawaMetrics, Processor processor) {
         this.queueManager = queueManager;
         this.threadPoolRegistry = threadPoolRegistry;
         this.thulawaTaskManager = thulawaTaskManager;
+        this.thulawaMetrics = thulawaMetrics;
         this.processor = processor;
         this.state = State.CREATED;
 
         this.queueManager.setSchedulerObserver(this);
     }
 
-    public static synchronized ThulawaScheduler getInstance(QueueManager queueManager, ThreadPoolRegistry threadPoolRegistry, ThulawaTaskManager thulawaTaskManager, Processor processor) {
+    public static synchronized ThulawaScheduler getInstance(QueueManager queueManager, ThreadPoolRegistry threadPoolRegistry, ThulawaTaskManager thulawaTaskManager,
+                                                            ThulawaMetrics thulawaMetrics, Processor processor) {
         if (instance == null) {
-            instance = new ThulawaScheduler(queueManager, threadPoolRegistry, thulawaTaskManager, processor);
+            instance = new ThulawaScheduler(queueManager, threadPoolRegistry, thulawaTaskManager, thulawaMetrics, processor);
         }
         return instance;
     }

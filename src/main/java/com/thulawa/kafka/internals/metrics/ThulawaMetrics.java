@@ -1,16 +1,12 @@
 package com.thulawa.kafka.internals.metrics;
 
 import org.apache.kafka.common.MetricName;
-import org.apache.kafka.common.metrics.KafkaMetric;
-import org.apache.kafka.common.metrics.MetricValueProvider;
-import org.apache.kafka.common.metrics.Metrics;
-import org.apache.kafka.common.metrics.Sensor;
+import org.apache.kafka.common.metrics.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.LinkedHashMap;
 import java.util.Map;
 
 public class ThulawaMetrics implements Closeable {
@@ -24,8 +20,12 @@ public class ThulawaMetrics implements Closeable {
         this.metrics = metrics;
     }
 
-    public void addMetric(final MetricName metricName, final MetricValueProvider<?> valueProvider) {
-        metrics.addMetric(metricName, valueProvider);
+    public void addMetric(final MetricName metricName, final Measurable measurable) {
+        metrics.addMetric(metricName, measurable);
+    }
+
+    public MetricName createMetricName(String name, String group, String description) {
+        return metrics.metricName(name, group, description);
     }
 
     public Sensor addSensor(final String sensorName) {
