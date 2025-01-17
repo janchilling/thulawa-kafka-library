@@ -5,8 +5,6 @@ import com.thulawa.kafka.ThulawaTaskManager;
 import com.thulawa.kafka.internals.helpers.QueueManager;
 import com.thulawa.kafka.internals.helpers.ThreadPoolRegistry;
 import com.thulawa.kafka.internals.metrics.ThulawaMetrics;
-import org.apache.kafka.common.metrics.Metrics;
-import org.apache.kafka.streams.StreamsMetrics;
 import org.apache.kafka.streams.processor.api.Processor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
