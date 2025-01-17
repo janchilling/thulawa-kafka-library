@@ -2,8 +2,6 @@ package com.thulawa.kafka;
 
 import org.apache.kafka.streams.processor.api.Record;
 
-import java.util.List;
-
 public class ThulawaTask {
 
     private final String threadPoolName;

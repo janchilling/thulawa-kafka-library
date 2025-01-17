@@ -1,6 +1,5 @@
 package com.thulawa.kafka.internals.storage;
 
-import com.thulawa.kafka.internals.metrics.ThulawaMetricsRecorder;
 import org.apache.kafka.streams.processor.api.Record;
 
 import java.util.concurrent.ConcurrentLinkedQueue;

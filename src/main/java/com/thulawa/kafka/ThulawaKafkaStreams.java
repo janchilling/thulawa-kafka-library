@@ -5,24 +5,15 @@
 
 package com.thulawa.kafka;
 
-import com.thulawa.kafka.internals.configs.ThulawaStreamsConfig;
 import com.thulawa.kafka.internals.metrics.ThulawaMetrics;
 import com.thulawa.kafka.internals.suppliers.ThulawaClientSupplier;
-import org.apache.kafka.clients.CommonClientConfigs;
-import org.apache.kafka.common.metrics.JmxReporter;
-import org.apache.kafka.common.metrics.KafkaMetricsContext;
-import org.apache.kafka.common.metrics.MetricConfig;
-import org.apache.kafka.common.metrics.Metrics;
 import org.apache.kafka.common.utils.Time;
 import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.Topology;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Collections;
 import java.util.Properties;
-
-import static com.thulawa.kafka.internals.metrics.ThulawaMetrics.THULAWA_METRICS_NAMESPACE;
 
 public class ThulawaKafkaStreams extends KafkaStreams {
 

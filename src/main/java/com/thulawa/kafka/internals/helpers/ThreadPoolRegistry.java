@@ -1,6 +1,5 @@
 package com.thulawa.kafka.internals.helpers;
 
-import com.thulawa.kafka.internals.processor.ThulawaProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

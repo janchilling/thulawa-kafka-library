@@ -1,11 +1,7 @@
 package com.thulawa.kafka.internals.helpers;
 
-import com.thulawa.kafka.ThulawaTaskManager;
-import com.thulawa.kafka.internals.processor.ThulawaProcessor;
 import com.thulawa.kafka.internals.storage.KeyBasedQueue;
 import com.thulawa.kafka.scheduler.Scheduler;
-import com.thulawa.kafka.scheduler.ThulawaScheduler;
-import org.apache.kafka.streams.processor.api.Processor;
 import org.apache.kafka.streams.processor.api.Record;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
