@@ -2,7 +2,6 @@ package com.thulawa.kafka.internals.suppliers;
 
 import com.thulawa.kafka.internals.clients.ThulawaConsumer;
 import org.apache.kafka.clients.consumer.Consumer;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.streams.processor.internals.DefaultKafkaClientSupplier;
 
