@@ -51,6 +51,10 @@ public class ThulawaMetrics implements Closeable {
         return metrics.metrics();
     }
 
+    public boolean doesMetricExist(MetricName metricname){
+        return this.metrics.metrics().containsKey(metricname);
+    }
+
 
     @Override
     public void close() throws IOException {
