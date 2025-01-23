@@ -12,7 +12,11 @@ import org.apache.kafka.streams.processor.api.Record;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.HashSet;
+import java.util.Set;
+
 import static com.thulawa.kafka.ThulawaKafkaStreams.THULAWA_METRICS_CONFIG;
+import static com.thulawa.kafka.internals.configs.ThulawaConfigs.HIGH_PRIORITY_KEY_MAP;
 
 /**
  * ThulawaProcessor processes Kafka records and manages key-based queues dynamically.
@@ -44,11 +48,11 @@ public class ThulawaProcessor<KIn, VIn, KOut, VOut> implements Processor<KIn, VI
         this.thulawaMetrics = (ThulawaMetrics) context.appConfigs().get(THULAWA_METRICS_CONFIG);
 
         initializeRecoders(this.thulawaMetrics);
-        this.queueManager = QueueManager.getInstance();
+        this.queueManager = QueueManager.getInstance((Set<String>) context.appConfigs().get(HIGH_PRIORITY_KEY_MAP));
         this.threadPoolRegistry = ThreadPoolRegistry.getInstance();
         this.thulawaTaskManager = new ThulawaTaskManager(this.threadPoolRegistry);
         this.thulawaScheduler = ThulawaScheduler.getInstance(this.queueManager, this.threadPoolRegistry,
-                this.thulawaTaskManager, thulawaMetrics, processor);
+                this.thulawaTaskManager, thulawaMetrics, processor, (Set<String>) context.appConfigs().get(HIGH_PRIORITY_KEY_MAP));
 
     }
 
