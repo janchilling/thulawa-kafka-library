@@ -1,5 +1,6 @@
 package com.thulawa.kafka.scheduler;
 
+import com.thulawa.kafka.MicroBatcher.MicroBatcher;
 import com.thulawa.kafka.ThulawaTask;
 import com.thulawa.kafka.ThulawaTaskManager;
 import com.thulawa.kafka.internals.helpers.QueueManager;
@@ -10,6 +11,7 @@ import org.apache.kafka.streams.processor.api.Record;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.Set;
 
 import static com.thulawa.kafka.internals.helpers.ThreadPoolRegistry.HIGH_PRIORITY_THREAD_POOL;
@@ -30,6 +32,9 @@ public class ThulawaScheduler implements Scheduler {
 
     private final ThulawaMetrics thulawaMetrics;
 
+    private final MicroBatcher microbatcher;
+    private static final int BATCH_SIZE = 5;
+
     private State state;
 
     private ThulawaScheduler(QueueManager queueManager, ThreadPoolRegistry threadPoolRegistry, ThulawaTaskManager thulawaTaskManager,
@@ -41,6 +46,7 @@ public class ThulawaScheduler implements Scheduler {
         this.processor = processor;
         this.highPriorityKeySet = highPriorityKeySet;
         this.state = State.CREATED;
+        this.microbatcher = new MicroBatcher(queueManager);
 
         this.queueManager.setSchedulerObserver(this);
     }
@@ -67,24 +73,24 @@ public class ThulawaScheduler implements Scheduler {
             try {
                 // High-priority processing
                 for (String highPriorityKey : highPriorityKeySet) {
-                    Record record = queueManager.getRecordFromQueue(highPriorityKey);
-                    if (record != null) {
+                    List<Record> highPriorityBatch = microbatcher.fetchBatch(highPriorityKey, BATCH_SIZE);
+                    if (!highPriorityBatch.isEmpty()) {
                         ThulawaTask highPriorityTask = new ThulawaTask(
                                 HIGH_PRIORITY_THREAD_POOL,
-                                record,
-                                () -> processor.process(record)
+                                highPriorityBatch,
+                                () -> highPriorityBatch.forEach(processor::process)
                         );
                         thulawaTaskManager.addActiveTask(HIGH_PRIORITY_THREAD_POOL, highPriorityTask);
                     }
                 }
 
                 // Low-priority processing
-                Record lowPriorityRecord = queueManager.getRecordFromQueue("low.priority.keys");
-                if (lowPriorityRecord != null) {
+                List<Record> lowPriorityBatch = microbatcher.fetchBatch("low.priority.keys", BATCH_SIZE);
+                if (!lowPriorityBatch.isEmpty()) {
                     ThulawaTask lowPriorityTask = new ThulawaTask(
                             LOW_PRIORITY_THREAD_POOL,
-                            lowPriorityRecord,
-                            () -> processor.process(lowPriorityRecord)
+                            lowPriorityBatch,
+                            () -> lowPriorityBatch.forEach(processor::process)
                     );
                     thulawaTaskManager.addActiveTask(LOW_PRIORITY_THREAD_POOL, lowPriorityTask);
                 }
