@@ -13,16 +13,18 @@ public class ThreadPoolRegistry {
 
     private static ThreadPoolRegistry instance;
 
-    public static final String THULAWA_MAIN_THREAD_POOL = "Thulawa-Main-Thread-Pool";
-    public static final String HIGH_PRIORITY_THREAD_POOL = "High-Priority-Thread-Pool";
-    public static final String LOW_PRIORITY_THREAD_POOL = "Low-Priority-Thread-Pool";
+    public static final String THULAWA_SCHEDULING_THREAD_POOL = "Thulawa-Scheduling-Thread-Pool";
+    //    public static final String HIGH_PRIORITY_THREAD_POOL = "High-Priority-Thread-Pool";
+//    public static final String LOW_PRIORITY_THREAD_POOL = "Low-Priority-Thread-Pool";
+    public static final String THULAWA_TASK_MANAGER_THREAD_POOL = "Thulawa-Task-Manager-Thread-Pool";
+    public static final String THULAWA_EXECUTOR_THREAD_POOL = "Thulawa-Executor-Thread-Pool";
 
     private final Map<String, ThreadPoolExecutor> threadPools = new ConcurrentHashMap<>();
 
     private ThreadPoolRegistry() {
-        this.registerThreadPool(THULAWA_MAIN_THREAD_POOL, 1, 2);
-        this.registerThreadPool(HIGH_PRIORITY_THREAD_POOL, 1, 2);
-        this.registerThreadPool(LOW_PRIORITY_THREAD_POOL, 1, 2);
+        this.registerThreadPool(THULAWA_SCHEDULING_THREAD_POOL, 1, 2);
+        this.registerThreadPool(THULAWA_TASK_MANAGER_THREAD_POOL, 1, 2);
+        this.registerThreadPool(THULAWA_EXECUTOR_THREAD_POOL, 1, 2);
     }
 
     public static synchronized ThreadPoolRegistry getInstance() {
@@ -35,9 +37,9 @@ public class ThreadPoolRegistry {
     /**
      * Creates and registers a thread pool with the given name, pool size, and queue size.
      *
-     * @param name       The unique name of the thread pool.
-     * @param poolSize   The number of threads in the pool.
-     * @param queueSize  The size of the task queue.
+     * @param name      The unique name of the thread pool.
+     * @param poolSize  The number of threads in the pool.
+     * @param queueSize The size of the task queue.
      */
     public void registerThreadPool(String name, int poolSize, int queueSize) {
         if (threadPools.containsKey(name)) {

@@ -14,9 +14,8 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.Set;
 
-import static com.thulawa.kafka.internals.helpers.ThreadPoolRegistry.HIGH_PRIORITY_THREAD_POOL;
-import static com.thulawa.kafka.internals.helpers.ThreadPoolRegistry.LOW_PRIORITY_THREAD_POOL;
-import static com.thulawa.kafka.internals.helpers.ThreadPoolRegistry.THULAWA_MAIN_THREAD_POOL;
+import static com.thulawa.kafka.internals.helpers.ThreadPoolRegistry.THULAWA_EXECUTOR_THREAD_POOL;
+import static com.thulawa.kafka.internals.helpers.ThreadPoolRegistry.THULAWA_SCHEDULING_THREAD_POOL;
 
 public class ThulawaScheduler implements Scheduler {
 
@@ -71,16 +70,18 @@ public class ThulawaScheduler implements Scheduler {
 
         while (this.state == State.ACTIVE) {
             try {
+
                 // High-priority processing
                 for (String highPriorityKey : highPriorityKeySet) {
                     List<Record> highPriorityBatch = microbatcher.fetchBatch(highPriorityKey, BATCH_SIZE);
                     if (!highPriorityBatch.isEmpty()) {
                         ThulawaTask highPriorityTask = new ThulawaTask(
-                                HIGH_PRIORITY_THREAD_POOL,
+                                THULAWA_EXECUTOR_THREAD_POOL,
                                 highPriorityBatch,
+                                "high-priority",
                                 () -> highPriorityBatch.forEach(processor::process)
                         );
-                        thulawaTaskManager.addActiveTask(HIGH_PRIORITY_THREAD_POOL, highPriorityTask);
+                        thulawaTaskManager.addActiveTask(THULAWA_EXECUTOR_THREAD_POOL, highPriorityTask);
                     }
                 }
 
@@ -88,11 +89,12 @@ public class ThulawaScheduler implements Scheduler {
                 List<Record> lowPriorityBatch = microbatcher.fetchBatch("low.priority.keys", BATCH_SIZE);
                 if (!lowPriorityBatch.isEmpty()) {
                     ThulawaTask lowPriorityTask = new ThulawaTask(
-                            LOW_PRIORITY_THREAD_POOL,
+                            THULAWA_EXECUTOR_THREAD_POOL,
                             lowPriorityBatch,
+                            "low-priority",
                             () -> lowPriorityBatch.forEach(processor::process)
                     );
-                    thulawaTaskManager.addActiveTask(LOW_PRIORITY_THREAD_POOL, lowPriorityTask);
+                    thulawaTaskManager.addActiveTask(THULAWA_EXECUTOR_THREAD_POOL, lowPriorityTask);
                 }
 
             } catch (Exception e) {
@@ -108,7 +110,7 @@ public class ThulawaScheduler implements Scheduler {
                 logger.warn("Scheduler thread is already running.");
                 return;
             }
-            this.threadPoolRegistry.getThreadPool(THULAWA_MAIN_THREAD_POOL).submit(this::schedule);
+            this.threadPoolRegistry.getThreadPool(THULAWA_SCHEDULING_THREAD_POOL).submit(this::schedule);
             this.state = State.ACTIVE;
         }
     }
