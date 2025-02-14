@@ -5,6 +5,7 @@ import com.thulawa.kafka.internals.helpers.QueueManager;
 import com.thulawa.kafka.internals.helpers.ThreadPoolRegistry;
 import com.thulawa.kafka.internals.metrics.JVMMetricsRecorder;
 import com.thulawa.kafka.internals.metrics.ThulawaMetrics;
+import com.thulawa.kafka.internals.metrics.ThulawaMetricsRecorder;
 import com.thulawa.kafka.scheduler.ThulawaScheduler;
 import org.apache.kafka.streams.processor.api.Processor;
 import org.apache.kafka.streams.processor.api.ProcessorContext;
@@ -35,6 +36,7 @@ public class ThulawaProcessor<KIn, VIn, KOut, VOut> implements Processor<KIn, VI
     private ProcessorContext processorContext;
 
     private JVMMetricsRecorder jvmMetricsRecorder;
+    private ThulawaMetricsRecorder thulawaMetricsRecorder;
 
     public ThulawaProcessor(Processor processor) {
         this.processor = processor;
@@ -50,7 +52,7 @@ public class ThulawaProcessor<KIn, VIn, KOut, VOut> implements Processor<KIn, VI
         initializeRecoders(this.thulawaMetrics);
         this.queueManager = QueueManager.getInstance((Set<String>) context.appConfigs().get(HIGH_PRIORITY_KEY_MAP));
         this.threadPoolRegistry = ThreadPoolRegistry.getInstance();
-        this.thulawaTaskManager = new ThulawaTaskManager(this.threadPoolRegistry);
+        this.thulawaTaskManager = new ThulawaTaskManager(this.threadPoolRegistry, this.thulawaMetrics, this.thulawaMetricsRecorder);
         this.thulawaScheduler = ThulawaScheduler.getInstance(this.queueManager, this.threadPoolRegistry,
                 this.thulawaTaskManager, thulawaMetrics, processor, (Set<String>) context.appConfigs().get(HIGH_PRIORITY_KEY_MAP));
 
@@ -58,6 +60,7 @@ public class ThulawaProcessor<KIn, VIn, KOut, VOut> implements Processor<KIn, VI
 
     private void initializeRecoders(ThulawaMetrics thulawaMetrics){
         this.jvmMetricsRecorder = new JVMMetricsRecorder(thulawaMetrics);
+        this.thulawaMetricsRecorder = new ThulawaMetricsRecorder(thulawaMetrics);
     }
 
     @Override
