@@ -10,19 +10,19 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class ThreadPoolRegistry {
 
     private static final Logger logger = LoggerFactory.getLogger(ThreadPoolRegistry.class);
+
     private static ThreadPoolRegistry instance;
 
-    public static final String THULAWA_SCHEDULING_THREAD_POOL = "Thulawa-Scheduling-Thread-Pool";
-    public static final String THULAWA_TASK_MANAGER_THREAD_POOL = "Thulawa-Task-Manager-Thread-Pool";
-    public static final String THULAWA_EXECUTOR_THREAD_POOL = "Thulawa-Executor-Thread-Pool";
+    public static final String THULAWA_MAIN_THREAD_POOL = "Thulawa-Main-Thread-Pool";
+    public static final String HIGH_PRIORITY_THREAD_POOL = "High-Priority-Thread-Pool";
+    public static final String LOW_PRIORITY_THREAD_POOL = "Low-Priority-Thread-Pool";
 
     private final Map<String, ThreadPoolExecutor> threadPools = new ConcurrentHashMap<>();
 
     private ThreadPoolRegistry() {
-        // Register thread pools with better configurations
-        this.registerThreadPool(THULAWA_SCHEDULING_THREAD_POOL, 2, 4, 100);
-        this.registerThreadPool(THULAWA_TASK_MANAGER_THREAD_POOL, 2, 5, 100);
-        this.registerThreadPool(THULAWA_EXECUTOR_THREAD_POOL, 2, 10, 500);
+        this.registerThreadPool(THULAWA_MAIN_THREAD_POOL, 1, 2);
+        this.registerThreadPool(HIGH_PRIORITY_THREAD_POOL, 1, 2);
+        this.registerThreadPool(LOW_PRIORITY_THREAD_POOL, 1, 2);
     }
 
     public static synchronized ThreadPoolRegistry getInstance() {
@@ -33,14 +33,13 @@ public class ThreadPoolRegistry {
     }
 
     /**
-     * Creates and registers a thread pool with dynamic scaling.
+     * Creates and registers a thread pool with the given name, pool size, and queue size.
      *
-     * @param name         The unique name of the thread pool.
-     * @param corePoolSize Minimum number of threads.
-     * @param maxPoolSize  Maximum number of threads.
-     * @param queueSize    The task queue size.
+     * @param name       The unique name of the thread pool.
+     * @param poolSize   The number of threads in the pool.
+     * @param queueSize  The size of the task queue.
      */
-    public void registerThreadPool(String name, int corePoolSize, int maxPoolSize, int queueSize) {
+    public void registerThreadPool(String name, int poolSize, int queueSize) {
         if (threadPools.containsKey(name)) {
             throw new IllegalArgumentException("Thread pool with name " + name + " already exists.");
         }
@@ -49,17 +48,16 @@ public class ThreadPoolRegistry {
         AtomicInteger threadNameIndex = new AtomicInteger(0);
 
         ThreadPoolExecutor threadPool = new ThreadPoolExecutor(
-                corePoolSize,
-                maxPoolSize,
-                60L, TimeUnit.SECONDS,
+                poolSize,
+                poolSize,
+                0L,
+                TimeUnit.MILLISECONDS,
                 taskQueue,
-                runnable -> {
-                    Thread thread = new Thread(runnable);
+                r -> {
+                    Thread thread = new Thread(r);
                     thread.setName(name + "-Thread-" + threadNameIndex.getAndIncrement());
-                    thread.setDaemon(true);  // Ensure proper shutdown
                     return thread;
-                },
-                new ThreadPoolExecutor.CallerRunsPolicy() // Prevent task rejection
+                }
         );
 
         threadPools.put(name, threadPool);

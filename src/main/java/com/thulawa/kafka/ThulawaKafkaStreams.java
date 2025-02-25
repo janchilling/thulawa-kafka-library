@@ -1,3 +1,8 @@
+//
+// Source code recreated from a .class file by IntelliJ IDEA
+// (powered by FernFlower decompiler)
+//
+
 package com.thulawa.kafka;
 
 import com.thulawa.kafka.internals.metrics.ThulawaMetrics;

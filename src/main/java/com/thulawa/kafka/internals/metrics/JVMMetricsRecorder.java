@@ -68,7 +68,7 @@ public class JVMMetricsRecorder implements AutoCloseable {
         this.scheduler = Executors.newSingleThreadScheduledExecutor();
 
         // This is not necessary will remove in the future once the testing from Grafana and Scheduler is completed
-//        scheduleMetricValidation();
+        scheduleMetricValidation();
     }
     // This is not necessary will remove in the future once the testing from Grafana and Scheduler is completed
     private void scheduleMetricValidation() {

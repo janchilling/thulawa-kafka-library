@@ -13,29 +13,32 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+
+import static com.thulawa.kafka.internals.helpers.ThreadPoolRegistry.HIGH_PRIORITY_THREAD_POOL;
+import static com.thulawa.kafka.internals.helpers.ThreadPoolRegistry.LOW_PRIORITY_THREAD_POOL;
+import static com.thulawa.kafka.internals.helpers.ThreadPoolRegistry.THULAWA_MAIN_THREAD_POOL;
 
 public class ThulawaScheduler implements Scheduler {
 
     private static final Logger logger = LoggerFactory.getLogger(ThulawaScheduler.class);
-    private static final int BATCH_SIZE = 5;
-    private static final int MAX_THREAD_LOAD = 50; // Threshold for adding new threads
-    private static final int MAX_THREADS = 10; // Maximum allowed threads
 
     private static ThulawaScheduler instance;
+
     private final QueueManager queueManager;
     private final ThreadPoolRegistry threadPoolRegistry;
     private final ThulawaTaskManager thulawaTaskManager;
     private final Processor processor;
     private final Set<String> highPriorityKeySet;
+
     private final ThulawaMetrics thulawaMetrics;
+
     private final MicroBatcher microbatcher;
+    private static final int BATCH_SIZE = 5;
+
     private State state;
 
-    private ThulawaScheduler(QueueManager queueManager, ThreadPoolRegistry threadPoolRegistry,
-                             ThulawaTaskManager thulawaTaskManager, ThulawaMetrics thulawaMetrics,
-                             Processor processor, Set<String> highPriorityKeySet) {
+    private ThulawaScheduler(QueueManager queueManager, ThreadPoolRegistry threadPoolRegistry, ThulawaTaskManager thulawaTaskManager,
+                             ThulawaMetrics thulawaMetrics, Processor processor, Set<String> highPriorityKeySet) {
         this.queueManager = queueManager;
         this.threadPoolRegistry = threadPoolRegistry;
         this.thulawaTaskManager = thulawaTaskManager;
@@ -44,69 +47,58 @@ public class ThulawaScheduler implements Scheduler {
         this.highPriorityKeySet = highPriorityKeySet;
         this.state = State.CREATED;
         this.microbatcher = new MicroBatcher(queueManager);
+
         this.queueManager.setSchedulerObserver(this);
     }
 
-    public static synchronized ThulawaScheduler getInstance(QueueManager queueManager,
-                                                            ThreadPoolRegistry threadPoolRegistry,
-                                                            ThulawaTaskManager thulawaTaskManager,
-                                                            ThulawaMetrics thulawaMetrics,
-                                                            Processor processor,
-                                                            Set<String> highPriorityKeySet) {
+    public static synchronized ThulawaScheduler getInstance(QueueManager queueManager, ThreadPoolRegistry threadPoolRegistry, ThulawaTaskManager thulawaTaskManager,
+                                                            ThulawaMetrics thulawaMetrics, Processor processor, Set<String> highPriorityKeySet) {
         if (instance == null) {
             instance = new ThulawaScheduler(queueManager, threadPoolRegistry, thulawaTaskManager, thulawaMetrics, processor, highPriorityKeySet);
         }
         return instance;
     }
 
+    /**
+     * 1. Listens for arriving events.
+     * 2. Distributes events between HIGH_PRIORITY and LOW_PRIORITY threads.
+     * 3. Updates the ThulawaTaskManager dynamically based on queue activity.
+     * 4. Creates or deletes threads based on requirements.
+     */
     public void schedule() {
         this.state = State.ACTIVE;
         logger.info("Scheduler is now ACTIVE");
 
         while (this.state == State.ACTIVE) {
             try {
-                balanceAndProcessTasks();
-//                adjustThreadPool();
+                // High-priority processing
+                for (String highPriorityKey : highPriorityKeySet) {
+                    List<Record> highPriorityBatch = microbatcher.fetchBatch(highPriorityKey, BATCH_SIZE);
+                    if (!highPriorityBatch.isEmpty()) {
+                        ThulawaTask highPriorityTask = new ThulawaTask(
+                                HIGH_PRIORITY_THREAD_POOL,
+                                highPriorityBatch,
+                                () -> highPriorityBatch.forEach(processor::process)
+                        );
+                        thulawaTaskManager.addActiveTask(HIGH_PRIORITY_THREAD_POOL, highPriorityTask);
+                    }
+                }
+
+                // Low-priority processing
+                List<Record> lowPriorityBatch = microbatcher.fetchBatch("low.priority.keys", BATCH_SIZE);
+                if (!lowPriorityBatch.isEmpty()) {
+                    ThulawaTask lowPriorityTask = new ThulawaTask(
+                            LOW_PRIORITY_THREAD_POOL,
+                            lowPriorityBatch,
+                            () -> lowPriorityBatch.forEach(processor::process)
+                    );
+                    thulawaTaskManager.addActiveTask(LOW_PRIORITY_THREAD_POOL, lowPriorityTask);
+                }
+
             } catch (Exception e) {
                 logger.error("Error in scheduler: {}", e.getMessage(), e);
                 Thread.currentThread().interrupt();
             }
-        }
-    }
-
-    private void balanceAndProcessTasks() {
-        int highPriorityWeight = 2; // Give more weight to high-priority tasks
-        int lowPriorityWeight = 1;
-
-        for (String highPriorityKey : highPriorityKeySet) {
-            processBatch(highPriorityKey, "high-priority", highPriorityWeight);
-        }
-
-        processBatch("low.priority.keys", "low-priority", lowPriorityWeight);
-    }
-
-    private void processBatch(String key, String priority, int weight) {
-        for (int i = 0; i < weight; i++) { // Weighted processing
-            List<Record> batch = microbatcher.fetchBatch(key, BATCH_SIZE);
-            if (!batch.isEmpty()) {
-                ThulawaTask task = new ThulawaTask(ThreadPoolRegistry.THULAWA_EXECUTOR_THREAD_POOL,
-                        batch, priority, () -> batch.forEach(processor::process));
-                thulawaTaskManager.addActiveTask(ThreadPoolRegistry.THULAWA_EXECUTOR_THREAD_POOL, task);
-            }
-        }
-    }
-
-    private void adjustThreadPool() {
-        ThreadPoolExecutor executorPool = threadPoolRegistry.getThreadPool(ThreadPoolRegistry.THULAWA_EXECUTOR_THREAD_POOL);
-        int queueSize = executorPool.getQueue().size();
-        int activeThreads = executorPool.getActiveCount();
-        int corePoolSize = executorPool.getCorePoolSize();
-
-        if (queueSize > MAX_THREAD_LOAD && corePoolSize < MAX_THREADS) {
-            int newPoolSize = Math.min(corePoolSize + 1, MAX_THREADS);
-            executorPool.setCorePoolSize(newPoolSize);
-            executorPool.setMaximumPoolSize(newPoolSize);
-            logger.info("Increased thread pool size to {} due to high load.", newPoolSize);
         }
     }
 
@@ -116,7 +108,7 @@ public class ThulawaScheduler implements Scheduler {
                 logger.warn("Scheduler thread is already running.");
                 return;
             }
-            this.threadPoolRegistry.getThreadPool(ThreadPoolRegistry.THULAWA_SCHEDULING_THREAD_POOL).submit(this::schedule);
+            this.threadPoolRegistry.getThreadPool(THULAWA_MAIN_THREAD_POOL).submit(this::schedule);
             this.state = State.ACTIVE;
         }
     }
@@ -135,6 +127,9 @@ public class ThulawaScheduler implements Scheduler {
     }
 
     private enum State {
-        CREATED, ACTIVE, INACTIVE, DEAD
+        CREATED,
+        ACTIVE,
+        INACTIVE,
+        DEAD
     }
 }
