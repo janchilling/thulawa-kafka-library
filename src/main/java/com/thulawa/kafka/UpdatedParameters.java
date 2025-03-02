@@ -40,16 +40,13 @@ public class UpdatedParameters {
      * @return A new Properties object with updated metrics configuration.
      */
     private Properties initializeThulawaMetrics(Properties originalProps) {
-        // Create a copy of the original properties to avoid mutation
         Properties updatedProps = new Properties();
         updatedProps.putAll(originalProps);
 
-        // Configure the Kafka Metrics
         MetricConfig metricConfig = new MetricConfig();
         JmxReporter jmxReporter = new JmxReporter();
         jmxReporter.configure(ThulawaStreamsConfig.cerateThulawaStreamsConfig(originalProps).originals());
 
-        // Create ThulawaMetrics with a custom Metrics object
         ThulawaMetrics thulawaMetrics = new ThulawaMetrics(new Metrics(
                 metricConfig,
                 Collections.singletonList(jmxReporter),
@@ -57,20 +54,35 @@ public class UpdatedParameters {
                 new KafkaMetricsContext(THULAWA_METRICS_NAMESPACE)
         ));
 
-        // Add the ThulawaMetrics instance to the properties
         updatedProps.put(THULAWA_METRICS_CONFIG, thulawaMetrics);
 
-        //write the code to get the keys seperated from commas and add to the map
         String highPriorityKeyList = originalProps.getProperty(ThulawaConfigs.HIGH_PRIORITY_KEY_LIST);
         if (highPriorityKeyList != null && !highPriorityKeyList.isEmpty()) {
-            // Split the comma-separated string and add the keys to the set
             String[] keys = highPriorityKeyList.split(",");
             for (String key : keys) {
-                highPriorityKeySet.add(key.trim()); // Trim to avoid leading/trailing spaces
+                highPriorityKeySet.add(key.trim());
             }
         }
-
         updatedProps.put(ThulawaConfigs.HIGH_PRIORITY_KEY_MAP, highPriorityKeySet);
+
+        if(originalProps.contains(ThulawaConfigs.PRIORITIZED_ADAPTIVE_SCHEDULER_ENABLED)){
+            updatedProps.put(ThulawaConfigs.PRIORITIZED_ADAPTIVE_SCHEDULER_ENABLED, originalProps.getProperty(ThulawaConfigs.PRIORITIZED_ADAPTIVE_SCHEDULER_ENABLED));
+        }else{
+            updatedProps.put(ThulawaConfigs.PRIORITIZED_ADAPTIVE_SCHEDULER_ENABLED, ThulawaConfigs.DEFAULT_PRIORITIZED_ADAPTIVE_SCHEDULER_ENABLED);
+        }
+
+        if(originalProps.contains(ThulawaConfigs.MICRO_BATCHER_ENABLED)){
+            updatedProps.put(ThulawaConfigs.MICRO_BATCHER_ENABLED, originalProps.getProperty(ThulawaConfigs.MICRO_BATCHER_ENABLED));
+        }else{
+            updatedProps.put(ThulawaConfigs.MICRO_BATCHER_ENABLED, ThulawaConfigs.DEFAULT_MICRO_BATCHER_ENABLED);
+        }
+
+        if(originalProps.contains(ThulawaConfigs.THULAWA_EXECUTOR_THREADPOOL_SIZE)){
+            updatedProps.put(ThulawaConfigs.THULAWA_EXECUTOR_THREADPOOL_SIZE, originalProps.getProperty(ThulawaConfigs.THULAWA_EXECUTOR_THREADPOOL_SIZE));
+        }else{
+            updatedProps.put(ThulawaConfigs.THULAWA_EXECUTOR_THREADPOOL_SIZE, ThulawaConfigs.DEFAULT_EXECUTOR_THULAWA_THREADPOOL_SIZE);
+        }
+
         return updatedProps;
     }
 }

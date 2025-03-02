@@ -13,15 +13,11 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 
 public class ThulawaScheduler implements Scheduler {
 
     private static final Logger logger = LoggerFactory.getLogger(ThulawaScheduler.class);
     private static final int BATCH_SIZE = 5;
-    private static final int MAX_THREAD_LOAD = 50; // Threshold for adding new threads
-    private static final int MAX_THREADS = 10; // Maximum allowed threads
 
     private static ThulawaScheduler instance;
     private final QueueManager queueManager;
@@ -31,11 +27,12 @@ public class ThulawaScheduler implements Scheduler {
     private final Set<String> highPriorityKeySet;
     private final ThulawaMetrics thulawaMetrics;
     private final MicroBatcher microbatcher;
+    private final boolean adaptiveSchedulerEnabled;
     private State state;
 
     private ThulawaScheduler(QueueManager queueManager, ThreadPoolRegistry threadPoolRegistry,
                              ThulawaTaskManager thulawaTaskManager, ThulawaMetrics thulawaMetrics,
-                             Processor processor, Set<String> highPriorityKeySet) {
+                             Processor processor, Set<String> highPriorityKeySet, boolean adaptiveSchedulerEnabled) {
         this.queueManager = queueManager;
         this.threadPoolRegistry = threadPoolRegistry;
         this.thulawaTaskManager = thulawaTaskManager;
@@ -45,6 +42,7 @@ public class ThulawaScheduler implements Scheduler {
         this.state = State.CREATED;
         this.microbatcher = new MicroBatcher(queueManager);
         this.queueManager.setSchedulerObserver(this);
+        this.adaptiveSchedulerEnabled = adaptiveSchedulerEnabled;
     }
 
     public static synchronized ThulawaScheduler getInstance(QueueManager queueManager,
@@ -52,14 +50,16 @@ public class ThulawaScheduler implements Scheduler {
                                                             ThulawaTaskManager thulawaTaskManager,
                                                             ThulawaMetrics thulawaMetrics,
                                                             Processor processor,
-                                                            Set<String> highPriorityKeySet) {
+                                                            Set<String> highPriorityKeySet,
+                                                            boolean adaptiveSchedulerEnabled) {
         if (instance == null) {
-            instance = new ThulawaScheduler(queueManager, threadPoolRegistry, thulawaTaskManager, thulawaMetrics, processor, highPriorityKeySet);
+            instance = new ThulawaScheduler(queueManager, threadPoolRegistry, thulawaTaskManager, thulawaMetrics, processor,
+                    highPriorityKeySet, adaptiveSchedulerEnabled);
         }
         return instance;
     }
 
-    public void schedule() {
+    public void runScheduler() {
         this.state = State.ACTIVE;
         logger.info("Scheduler is now ACTIVE");
 
@@ -67,6 +67,20 @@ public class ThulawaScheduler implements Scheduler {
             try {
                 balanceAndProcessTasks();
 //                adjustThreadPool();
+            } catch (Exception e) {
+                logger.error("Error in scheduler: {}", e.getMessage(), e);
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
+
+    public void runAdaptiveScheduler() {
+        this.state = State.ACTIVE;
+        logger.info("Scheduler is now ACTIVE");
+
+        while (this.state == State.ACTIVE) {
+            try {
+                balanceAndProcessTasks();
             } catch (Exception e) {
                 logger.error("Error in scheduler: {}", e.getMessage(), e);
                 Thread.currentThread().interrupt();
@@ -96,27 +110,17 @@ public class ThulawaScheduler implements Scheduler {
         }
     }
 
-    private void adjustThreadPool() {
-        ThreadPoolExecutor executorPool = threadPoolRegistry.getThreadPool(ThreadPoolRegistry.THULAWA_EXECUTOR_THREAD_POOL);
-        int queueSize = executorPool.getQueue().size();
-        int activeThreads = executorPool.getActiveCount();
-        int corePoolSize = executorPool.getCorePoolSize();
-
-        if (queueSize > MAX_THREAD_LOAD && corePoolSize < MAX_THREADS) {
-            int newPoolSize = Math.min(corePoolSize + 1, MAX_THREADS);
-            executorPool.setCorePoolSize(newPoolSize);
-            executorPool.setMaximumPoolSize(newPoolSize);
-            logger.info("Increased thread pool size to {} due to high load.", newPoolSize);
-        }
-    }
-
     public void startSchedulingThread() {
         synchronized (this) {
             if (state == State.ACTIVE) {
                 logger.warn("Scheduler thread is already running.");
                 return;
             }
-            this.threadPoolRegistry.getThreadPool(ThreadPoolRegistry.THULAWA_SCHEDULING_THREAD_POOL).submit(this::schedule);
+            if(this.adaptiveSchedulerEnabled){
+                this.threadPoolRegistry.getThreadPool(ThreadPoolRegistry.THULAWA_SCHEDULING_THREAD_POOL).submit(this::runAdaptiveScheduler);
+            }else {
+                this.threadPoolRegistry.getThreadPool(ThreadPoolRegistry.THULAWA_SCHEDULING_THREAD_POOL).submit(this::runScheduler);
+            }
             this.state = State.ACTIVE;
         }
     }

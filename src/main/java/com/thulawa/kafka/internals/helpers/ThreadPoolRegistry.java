@@ -18,16 +18,16 @@ public class ThreadPoolRegistry {
 
     private final Map<String, ThreadPoolExecutor> threadPools = new ConcurrentHashMap<>();
 
-    private ThreadPoolRegistry() {
+    private ThreadPoolRegistry(int corePoolSize) {
         // Register thread pools with better configurations
         this.registerThreadPool(THULAWA_SCHEDULING_THREAD_POOL, 2, 4, 100);
         this.registerThreadPool(THULAWA_TASK_MANAGER_THREAD_POOL, 2, 5, 100);
-        this.registerThreadPool(THULAWA_EXECUTOR_THREAD_POOL, 2, 10, 500);
+        this.registerThreadPool(THULAWA_EXECUTOR_THREAD_POOL, corePoolSize, 10, 500);
     }
 
-    public static synchronized ThreadPoolRegistry getInstance() {
+    public static synchronized ThreadPoolRegistry getInstance(int corePoolSize) {
         if (instance == null) {
-            instance = new ThreadPoolRegistry();
+            instance = new ThreadPoolRegistry(corePoolSize);
         }
         return instance;
     }
