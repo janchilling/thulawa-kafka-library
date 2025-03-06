@@ -1,6 +1,7 @@
 package com.thulawa.kafka.scheduler;
 
 import com.thulawa.kafka.MicroBatcher.MicroBatcher;
+import com.thulawa.kafka.ThulawaEvent;
 import com.thulawa.kafka.ThulawaTask;
 import com.thulawa.kafka.ThulawaTaskManager;
 import com.thulawa.kafka.internals.helpers.QueueManager;
@@ -17,7 +18,7 @@ import java.util.Set;
 public class ThulawaScheduler implements Scheduler {
 
     private static final Logger logger = LoggerFactory.getLogger(ThulawaScheduler.class);
-    private static final int BATCH_SIZE = 5;
+    private static final int BATCH_SIZE = 1;
 
     private static ThulawaScheduler instance;
     private final QueueManager queueManager;
@@ -65,8 +66,7 @@ public class ThulawaScheduler implements Scheduler {
 
         while (this.state == State.ACTIVE) {
             try {
-                balanceAndProcessTasks();
-//                adjustThreadPool();
+                processBatch();
             } catch (Exception e) {
                 logger.error("Error in scheduler: {}", e.getMessage(), e);
                 Thread.currentThread().interrupt();
@@ -80,7 +80,7 @@ public class ThulawaScheduler implements Scheduler {
 
         while (this.state == State.ACTIVE) {
             try {
-                balanceAndProcessTasks();
+//                balanceAndProcessTasks();
             } catch (Exception e) {
                 logger.error("Error in scheduler: {}", e.getMessage(), e);
                 Thread.currentThread().interrupt();
@@ -88,26 +88,24 @@ public class ThulawaScheduler implements Scheduler {
         }
     }
 
-    private void balanceAndProcessTasks() {
-        int highPriorityWeight = 2; // Give more weight to high-priority tasks
-        int lowPriorityWeight = 1;
+//    private void balanceAndProcessTasks() {
+//        int highPriorityWeight = 2; // Give more weight to high-priority tasks
+//        int lowPriorityWeight = 1;
+//
+//        for (String highPriorityKey : highPriorityKeySet) {
+//            processBatch(highPriorityKey, "high-priority", highPriorityWeight);
+//        }
+//
+//        processBatch("low.priority.keys", "low-priority", lowPriorityWeight);
+//    }
 
-        for (String highPriorityKey : highPriorityKeySet) {
-            processBatch(highPriorityKey, "high-priority", highPriorityWeight);
-        }
-
-        processBatch("low.priority.keys", "low-priority", lowPriorityWeight);
-    }
-
-    private void processBatch(String key, String priority, int weight) {
-        for (int i = 0; i < weight; i++) { // Weighted processing
-            List<Record> batch = microbatcher.fetchBatch(key, BATCH_SIZE);
+    private void processBatch() {
+            List<ThulawaEvent> batch = microbatcher.fetchBatch(BATCH_SIZE);
             if (!batch.isEmpty()) {
                 ThulawaTask task = new ThulawaTask(ThreadPoolRegistry.THULAWA_EXECUTOR_THREAD_POOL,
-                        batch, priority, () -> batch.forEach(processor::process));
+                        batch);
                 thulawaTaskManager.addActiveTask(ThreadPoolRegistry.THULAWA_EXECUTOR_THREAD_POOL, task);
             }
-        }
     }
 
     public void startSchedulingThread() {

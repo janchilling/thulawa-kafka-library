@@ -65,23 +65,14 @@ public class UpdatedParameters {
         }
         updatedProps.put(ThulawaConfigs.HIGH_PRIORITY_KEY_MAP, highPriorityKeySet);
 
-        if(originalProps.contains(ThulawaConfigs.PRIORITIZED_ADAPTIVE_SCHEDULER_ENABLED)){
-            updatedProps.put(ThulawaConfigs.PRIORITIZED_ADAPTIVE_SCHEDULER_ENABLED, originalProps.getProperty(ThulawaConfigs.PRIORITIZED_ADAPTIVE_SCHEDULER_ENABLED));
-        }else{
-            updatedProps.put(ThulawaConfigs.PRIORITIZED_ADAPTIVE_SCHEDULER_ENABLED, ThulawaConfigs.DEFAULT_PRIORITIZED_ADAPTIVE_SCHEDULER_ENABLED);
-        }
+        updatedProps.put(ThulawaConfigs.PRIORITIZED_ADAPTIVE_SCHEDULER_ENABLED,
+                originalProps.getOrDefault(ThulawaConfigs.PRIORITIZED_ADAPTIVE_SCHEDULER_ENABLED, ThulawaConfigs.DEFAULT_PRIORITIZED_ADAPTIVE_SCHEDULER_ENABLED));
 
-        if(originalProps.contains(ThulawaConfigs.MICRO_BATCHER_ENABLED)){
-            updatedProps.put(ThulawaConfigs.MICRO_BATCHER_ENABLED, originalProps.getProperty(ThulawaConfigs.MICRO_BATCHER_ENABLED));
-        }else{
-            updatedProps.put(ThulawaConfigs.MICRO_BATCHER_ENABLED, ThulawaConfigs.DEFAULT_MICRO_BATCHER_ENABLED);
-        }
+        updatedProps.put(ThulawaConfigs.MICRO_BATCHER_ENABLED,
+                originalProps.getOrDefault(ThulawaConfigs.MICRO_BATCHER_ENABLED, ThulawaConfigs.DEFAULT_MICRO_BATCHER_ENABLED));
 
-        if(originalProps.contains(ThulawaConfigs.THULAWA_EXECUTOR_THREADPOOL_SIZE)){
-            updatedProps.put(ThulawaConfigs.THULAWA_EXECUTOR_THREADPOOL_SIZE, originalProps.getProperty(ThulawaConfigs.THULAWA_EXECUTOR_THREADPOOL_SIZE));
-        }else{
-            updatedProps.put(ThulawaConfigs.THULAWA_EXECUTOR_THREADPOOL_SIZE, ThulawaConfigs.DEFAULT_EXECUTOR_THULAWA_THREADPOOL_SIZE);
-        }
+        updatedProps.put(ThulawaConfigs.THULAWA_EXECUTOR_THREADPOOL_SIZE,
+                originalProps.getOrDefault(ThulawaConfigs.THULAWA_EXECUTOR_THREADPOOL_SIZE, ThulawaConfigs.DEFAULT_EXECUTOR_THULAWA_THREADPOOL_SIZE));
 
         return updatedProps;
     }

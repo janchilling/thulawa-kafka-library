@@ -1,5 +1,6 @@
 package com.thulawa.kafka.internals.processor;
 
+import com.thulawa.kafka.ThulawaEvent;
 import com.thulawa.kafka.ThulawaTaskManager;
 import com.thulawa.kafka.internals.configs.ThulawaConfigs;
 import com.thulawa.kafka.internals.helpers.QueueManager;
@@ -66,11 +67,16 @@ public class ThulawaProcessor<KIn, VIn, KOut, VOut> implements Processor<KIn, VI
 
     @Override
     public void process(Record<KIn, VIn> record) {
-        // Extract the key from the record
-        String key = (String) record.key();
 
-        // Add the record to the queue
-        queueManager.addToKeyBasedQueue(key, record);
+        String key = (String) record.key();
+        long receivedSystemTIme = processorContext.currentSystemTimeMs();
+        Runnable runnableProcess = () ->{
+            this.processor.process(record);
+        };
+
+        ThulawaEvent thulawaEvent = new ThulawaEvent(record, receivedSystemTIme, runnableProcess);
+
+        queueManager.addToKeyBasedQueue(key, thulawaEvent);
     }
 
 

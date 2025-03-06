@@ -101,7 +101,9 @@ public class ThulawaTaskManager {
 
                 CompletableFuture<Object> future = CompletableFuture.supplyAsync(() -> {
                             try {
-                                task.getRunnableProcess().run();
+                                task.getThulawaEvents().forEach(thulawaEvent -> {
+                                    thulawaEvent.getRunnableProcess().run();
+                                });
                                 return null;
                             } catch (Exception e) {
                                 logger.error("Task failed: {}", e.getMessage());
