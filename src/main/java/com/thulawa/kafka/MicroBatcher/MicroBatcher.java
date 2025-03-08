@@ -1,5 +1,6 @@
 package com.thulawa.kafka.MicroBatcher;
 
+import com.thulawa.kafka.ThulawaEvent;
 import com.thulawa.kafka.internals.helpers.QueueManager;
 import org.apache.kafka.streams.processor.api.Record;
 
@@ -18,20 +19,18 @@ public class MicroBatcher {
     /**
      * Retrieves a batch of records from the queue for the given key.
      *
-     * @param key       The key for the queue to fetch records.
      * @param batchSize The number of records to fetch in a batch.
      * @return A list of records.
      */
-    public List<Record> fetchBatch(String key, int batchSize) {
-        List<Record> batch = new ArrayList<>();
-        for (int i = 0; i < batchSize; i++) {
-            Record record = queueManager.getRecordFromQueue(key);
-            if (record != null) {
-                batch.add(record);
-            } else {
-                break; // Stop fetching if no more records are available
-            }
-        }
-        return batch;
+    public List<ThulawaEvent> fetchBatch(String headQueueKey, int batchSize) {
+//        List<ThulawaEvent> batch = new ArrayList<>();
+
+//        ThulawaEvent thulawaEvent = queueManager.getNextRecord();
+//
+//        if (thulawaEvent != null) {
+//
+//            batch.addAll(thulawaEventList);
+//        }
+        return queueManager.getRecordBatchesFromKBQueues(headQueueKey, batchSize);
     }
 }

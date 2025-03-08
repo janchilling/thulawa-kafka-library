@@ -1,6 +1,6 @@
 package com.thulawa.kafka.internals.storage;
 
-import org.apache.kafka.streams.processor.api.Record;
+import com.thulawa.kafka.ThulawaEvent;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -16,7 +16,7 @@ public class KeyBasedQueue {
 
     private final String recordKey;
 
-    private final ConcurrentLinkedQueue<Record> recordsQueue;
+    private final ConcurrentLinkedQueue<ThulawaEvent> recordsQueue;
 //    private ThulawaMetricsRecorder thulawaMetricsRecorder;
 
     /**
@@ -33,21 +33,32 @@ public class KeyBasedQueue {
     /**
      * Adds a new Kafka Record to the queue.
      *
-     * @param record The Kafka Record to add to the queue.
+     * @param thulawaEvent The Kafka Record to add to the queue.
      */
-    public void add(Record record) {
-        recordsQueue.offer(record);
+    public void add(ThulawaEvent thulawaEvent) {
+        recordsQueue.offer(thulawaEvent);
 //        this.thulawaMetricsRecorder.updateKeyBasedQueueSizes(this.size());
     }
+
+    public long peekTimestamp() {
+        ThulawaEvent event = recordsQueue.peek();
+        return (event != null) ? event.getReceivedSystemTime() : Long.MAX_VALUE;
+    }
+
 
     /**
      * Retrieves and removes the head of the queue, or returns null if the queue is empty.
      *
      * @return The head Kafka Record, or null if the queue is empty.
      */
-    public Record<Object, Object> poll() {
+    public ThulawaEvent poll() {
         return recordsQueue.poll();
     }
+
+    public ThulawaEvent peek() {
+        return recordsQueue.peek();
+    }
+
 
     /**
      * Returns the number of records currently in the queue.
