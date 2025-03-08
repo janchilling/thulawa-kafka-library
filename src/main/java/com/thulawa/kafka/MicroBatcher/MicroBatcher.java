@@ -22,21 +22,15 @@ public class MicroBatcher {
      * @param batchSize The number of records to fetch in a batch.
      * @return A list of records.
      */
-    public List<ThulawaEvent> fetchBatch(int batchSize) {
-        List<ThulawaEvent> batch = new ArrayList<>();
-//        for (int i = 0; i < batchSize; i++) {
-//            ThulawaEvent thulawaEvent = queueManager.getNextRecord();
-//            if (thulawaEvent != null) {
-//                batch.add(thulawaEvent);
-//            } else {
-//                break; // Stop fetching if no more records are available
-//            }
-//        }
+    public List<ThulawaEvent> fetchBatch(String headQueueKey, int batchSize) {
+//        List<ThulawaEvent> batch = new ArrayList<>();
 
-        ThulawaEvent thulawaEvent = queueManager.getNextRecord();
-        if (thulawaEvent != null) {
-            batch.add(thulawaEvent);
-        }
-        return batch;
+//        ThulawaEvent thulawaEvent = queueManager.getNextRecord();
+//
+//        if (thulawaEvent != null) {
+//
+//            batch.addAll(thulawaEventList);
+//        }
+        return queueManager.getRecordBatchesFromKBQueues(headQueueKey, batchSize);
     }
 }

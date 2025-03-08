@@ -6,8 +6,8 @@ import com.thulawa.kafka.internals.metrics.ThulawaMetricsRecorder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Queue;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -19,20 +19,19 @@ public class ThulawaTaskManager {
 
     private static final Logger logger = LoggerFactory.getLogger(ThulawaTaskManager.class);
 
-    // Map of thread names to their assigned active tasks
-    private final Queue<ThulawaTask> assignedActiveTasks = new ConcurrentLinkedQueue<>();
-
+    private final Map<String, Queue<ThulawaTask>> assignedActiveTasks = new ConcurrentHashMap<>();
     private final ThreadPoolRegistry threadPoolRegistry;
     private final ThulawaMetrics thulawaMetrics;
     private final ThulawaMetricsRecorder thulawaMetricsRecorder;
     private final Semaphore taskExecutionSemaphore = new Semaphore(100);
     private final AtomicInteger successCounter = new AtomicInteger(0);
-
     private final boolean microBatcherEnabled;
 
-    private ThulawaTaskManager.State state;
+    private final Map<String, KeyProcessingState> keySetState = new ConcurrentHashMap<>();
+    private State state;
 
-    public ThulawaTaskManager(ThreadPoolRegistry threadPoolRegistry, ThulawaMetrics thulawaMetrics, ThulawaMetricsRecorder thulawaMetricsRecorder, boolean microBatcherEnabled) {
+    public ThulawaTaskManager(ThreadPoolRegistry threadPoolRegistry, ThulawaMetrics thulawaMetrics,
+                              ThulawaMetricsRecorder thulawaMetricsRecorder, boolean microBatcherEnabled) {
         this.threadPoolRegistry = threadPoolRegistry;
         this.thulawaMetrics = thulawaMetrics;
         this.thulawaMetricsRecorder = thulawaMetricsRecorder;
@@ -41,18 +40,17 @@ public class ThulawaTaskManager {
     }
 
     /**
-     * Adds a task to the queue of active tasks for a specific thread.
-     * Creates a new task queue for the thread if it doesn't already exist.
+     * Adds a task to the queue of active tasks for a specific key.
+     * Creates a new task queue for the key if it doesn't already exist.
      *
-     * @param threadPoolName The name of the thread.
-     * @param thulawaTask    The task to add.
+     * @param key         The key of the task.
+     * @param thulawaTask The task to add.
      */
-    public void addActiveTask(String threadPoolName, ThulawaTask thulawaTask) {
-//        // Ensure the thread has a task queue
-//        assignedActiveTasks.computeIfAbsent(threadPoolName, k -> new ConcurrentLinkedQueue<>());
+    public void addActiveTask(String key, ThulawaTask thulawaTask) {
+        assignedActiveTasks.computeIfAbsent(key, k -> new ConcurrentLinkedQueue<>()).add(thulawaTask);
 
-        // Add the task to the thread's task queue
-        assignedActiveTasks.add(thulawaTask);
+        // Ensure key is marked as NOT_PROCESSING if it's a new key
+        keySetState.putIfAbsent(key, KeyProcessingState.NOT_PROCESSING);
 
         if (state != State.ACTIVE) {
             startTaskManagerThread();
@@ -60,61 +58,51 @@ public class ThulawaTaskManager {
     }
 
     /**
-     * Submits ThulawaTasks from assignedActiveTasks to the appropriate thread pools.
+     * Submits tasks from assignedActiveTasks to the appropriate thread pools.
      */
     public void microBatcherDisabledTaskSubmission() {
-//        synchronized (this) {
-//            // Check if there are tasks to process
-//            if (assignedActiveTasks.isEmpty()) {
-//                logger.info("No tasks to process.");
-//                return;
-//            }
-//
-//            while (this.state == State.ACTIVE) {
-//                for (String threadPoolName : assignedActiveTasks.keySet()) {
-//                    Queue<ThulawaTask> taskQueue = assignedActiveTasks.get(threadPoolName);
-//
-//                    ThulawaTask task = taskQueue.poll();
-//                    if (task != null) {
-//                        int processedRecordCount = task.getRecords().size();
-//
-//                        // Log metrics based on priority
-//                        if (Objects.equals(task.getPriority(), "high-priority")) {
-//                            thulawaMetricsRecorder.updateHighPriorityTasks(processedRecordCount);
-//                        } else {
-//                            thulawaMetricsRecorder.updateLowPriorityTasks(processedRecordCount);
-//                        }
-//
-//                        // Submit the task to the appropriate thread pool
-//                        threadPoolRegistry.getThreadPool(threadPoolName).submit(task.getRunnableProcess());
-//                    }
-//                }
-//            }
-//        }
         while (this.state == State.ACTIVE) {
-            if (!assignedActiveTasks.isEmpty() && taskExecutionSemaphore.tryAcquire()) {
-                ThulawaTask task = assignedActiveTasks.poll();
-                if (task == null) {
-                    taskExecutionSemaphore.release();
-                    return;
+            for (String key : assignedActiveTasks.keySet()) {
+                Queue<ThulawaTask> taskQueue = assignedActiveTasks.get(key);
+
+                // Ensure the queue exists, is not empty, and is in NOT_PROCESSING state
+                if (taskQueue == null || taskQueue.isEmpty() || keySetState.get(key) == KeyProcessingState.PROCESSING) {
+                    continue;
                 }
 
-                CompletableFuture<Object> future = CompletableFuture.supplyAsync(() -> {
+                // Mark key as processing
+                keySetState.put(key, KeyProcessingState.PROCESSING);
+
+                // Take the head of the queue
+                ThulawaTask task = taskQueue.poll();
+                if (task == null) {
+                    keySetState.put(key, KeyProcessingState.NOT_PROCESSING);
+                    continue;
+                }
+
+                // Acquire semaphore to control concurrency
+                if (!taskExecutionSemaphore.tryAcquire()) {
+                    keySetState.put(key, KeyProcessingState.NOT_PROCESSING);
+                    continue;
+                }
+
+                CompletableFuture.runAsync(() -> {
                             try {
-                                task.getThulawaEvents().forEach(thulawaEvent -> {
-                                    thulawaEvent.getRunnableProcess().run();
-                                });
-                                return null;
+                                task.getThulawaEvents().forEach(thulawaEvent -> thulawaEvent.getRunnableProcess().run());
                             } catch (Exception e) {
                                 logger.error("Task failed: {}", e.getMessage());
                                 throw new CompletionException(e);
                             }
-                        }, threadPoolRegistry.getThreadPool(ThreadPoolRegistry.THULAWA_EXECUTOR_THREAD_POOL))
+                        }, Executors.newThreadPerTaskExecutor(Thread.ofVirtual().factory()))
                         .whenComplete((r, t) -> {
+                            // Release semaphore
                             taskExecutionSemaphore.release();
+
+                            // Mark key as NOT_PROCESSING so next task can be submitted
+                            keySetState.put(key, KeyProcessingState.NOT_PROCESSING);
+
                             if (t == null) {
                                 successCounter.incrementAndGet();
-                                logger.info("Task completed successfully. Total success count: {}", successCounter.get());
                             } else {
                                 handleFailure(task, t);
                             }
@@ -128,7 +116,7 @@ public class ThulawaTaskManager {
     }
 
     public void microBatcherEnabledTaskSubmission() {
-
+        // Implementation goes here
     }
 
     private void handleFatalException(ThulawaTask task, Throwable fatalException) {
@@ -150,11 +138,14 @@ public class ThulawaTaskManager {
             }
 
             logger.info("Starting the Task Manager thread.");
-            if (this.microBatcherEnabled) {
-                this.threadPoolRegistry.getThreadPool(ThreadPoolRegistry.THULAWA_TASK_MANAGER_THREAD_POOL).submit(this::microBatcherEnabledTaskSubmission);
-            } else {
-                this.threadPoolRegistry.getThreadPool(ThreadPoolRegistry.THULAWA_TASK_MANAGER_THREAD_POOL).submit(this::microBatcherDisabledTaskSubmission);
-            }
+            Runnable taskSubmission = this.microBatcherEnabled
+                    ? this::microBatcherEnabledTaskSubmission
+                    : this::microBatcherDisabledTaskSubmission;
+
+            this.threadPoolRegistry
+                    .getThreadPool(ThreadPoolRegistry.THULAWA_TASK_MANAGER_THREAD_POOL)
+                    .submit(taskSubmission);
+
             this.state = State.ACTIVE;
         }
     }
@@ -164,4 +155,8 @@ public class ThulawaTaskManager {
         ACTIVE
     }
 
+    private enum KeyProcessingState {
+        PROCESSING,
+        NOT_PROCESSING
+    }
 }

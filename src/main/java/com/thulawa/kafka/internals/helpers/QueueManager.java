@@ -6,8 +6,7 @@ import com.thulawa.kafka.scheduler.Scheduler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -50,7 +49,7 @@ public class QueueManager {
             Long existingTimestamp = queueEarliestTimestamps.get(queueKey);
 
             if (existingTimestamp == null || timestamp < existingTimestamp) {
-                queueEarliestTimestamps.put(queueKey, timestamp);
+                queueEarliestTimestamps.put(queueKey, Long.valueOf(timestamp));
             }
 
             // Update head event if it's the oldest
@@ -88,7 +87,7 @@ public class QueueManager {
 
             if (!queue.isEmpty()) {
                 long newEarliestTimestamp = queue.peekTimestamp();
-                queueEarliestTimestamps.put(headQueueKey, newEarliestTimestamp);
+                queueEarliestTimestamps.put(headQueueKey, Long.valueOf(newEarliestTimestamp));
             } else {
                 queueEarliestTimestamps.remove(headQueueKey);
                 queues.remove(headQueueKey);
@@ -108,6 +107,46 @@ public class QueueManager {
             lock.unlock();
         }
     }
+
+    public List<ThulawaEvent> getRecordBatchesFromKBQueues(String key, int batchSize) {
+        lock.lock();
+        try {
+            String queueKey = (key != null) ? key : COMMON_QUEUE_KEY;
+            KeyBasedQueue queue = queues.get(queueKey);
+
+            if (queue == null || queue.isEmpty()) {
+                return Collections.emptyList();
+            }
+
+            List<ThulawaEvent> batch = new ArrayList<>();
+            for (int i = 0; i < batchSize && !queue.isEmpty(); i++) {
+                batch.add(queue.poll());
+            }
+
+            // Update queue timestamps and head event if needed
+            if (!queue.isEmpty()) {
+                queueEarliestTimestamps.put(queueKey, queue.peekTimestamp());
+            } else {
+                queueEarliestTimestamps.remove(queueKey);
+                queues.remove(queueKey);
+            }
+
+            // Recalculate head event
+            headEvent = null;
+            headQueueKey = null;
+            for (Map.Entry<String, Long> entry : queueEarliestTimestamps.entrySet()) {
+                if (headEvent == null || entry.getValue() < headEvent.getReceivedSystemTime()) {
+                    headQueueKey = entry.getKey();
+                    headEvent = queues.get(entry.getKey()).peek();
+                }
+            }
+
+            return batch;
+        } finally {
+            lock.unlock();
+        }
+    }
+
 
     public void setSchedulerObserver(Scheduler observer) {
         this.schedulerObserver = observer;

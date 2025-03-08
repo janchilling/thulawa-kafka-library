@@ -18,7 +18,7 @@ import java.util.Set;
 public class ThulawaScheduler implements Scheduler {
 
     private static final Logger logger = LoggerFactory.getLogger(ThulawaScheduler.class);
-    private static final int BATCH_SIZE = 1;
+    private static final int BATCH_SIZE = 3;
 
     private static ThulawaScheduler instance;
     private final QueueManager queueManager;
@@ -100,12 +100,13 @@ public class ThulawaScheduler implements Scheduler {
 //    }
 
     private void processBatch() {
-            List<ThulawaEvent> batch = microbatcher.fetchBatch(BATCH_SIZE);
-            if (!batch.isEmpty()) {
-                ThulawaTask task = new ThulawaTask(ThreadPoolRegistry.THULAWA_EXECUTOR_THREAD_POOL,
-                        batch);
-                thulawaTaskManager.addActiveTask(ThreadPoolRegistry.THULAWA_EXECUTOR_THREAD_POOL, task);
-            }
+        String headQueueKey = queueManager.getEarliestQueueKey();
+        List<ThulawaEvent> batch = microbatcher.fetchBatch(headQueueKey, BATCH_SIZE);
+        if (!batch.isEmpty()) {
+            ThulawaTask task = new ThulawaTask(ThreadPoolRegistry.THULAWA_EXECUTOR_THREAD_POOL,
+                    batch);
+            thulawaTaskManager.addActiveTask(headQueueKey, task);
+        }
     }
 
     public void startSchedulingThread() {
@@ -114,9 +115,9 @@ public class ThulawaScheduler implements Scheduler {
                 logger.warn("Scheduler thread is already running.");
                 return;
             }
-            if(this.adaptiveSchedulerEnabled){
+            if (this.adaptiveSchedulerEnabled) {
                 this.threadPoolRegistry.getThreadPool(ThreadPoolRegistry.THULAWA_SCHEDULING_THREAD_POOL).submit(this::runAdaptiveScheduler);
-            }else {
+            } else {
                 this.threadPoolRegistry.getThreadPool(ThreadPoolRegistry.THULAWA_SCHEDULING_THREAD_POOL).submit(this::runScheduler);
             }
             this.state = State.ACTIVE;

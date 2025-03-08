@@ -7,6 +7,11 @@ import java.util.Map;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
+/**
+ * !!Important!! - This class(ThreadPools) are not needed if we are using Virtual Threads.
+ * But Kept this class since Scheduler and Task manager are running in threadpools, can shift them to virtual threads as well, but kept for now
+ * Furthermore, task processing is now done in virtual threads.
+ */
 public class ThreadPoolRegistry {
 
     private static final Logger logger = LoggerFactory.getLogger(ThreadPoolRegistry.class);
