@@ -24,7 +24,7 @@ public class ThulawaKafkaStreams extends KafkaStreams {
     }
 
     public ThulawaKafkaStreams( UpdatedParameters updatedParameters ) {
-        super(updatedParameters.topology, updatedParameters.props, updatedParameters.clientSupplier, Time.SYSTEM);
+        super(updatedParameters.topology, updatedParameters.props, Time.SYSTEM);
 
         // Have to properly update the metrics exposing with a proper design pattern
         // This is temporary, and will be updated in the later enhancements
