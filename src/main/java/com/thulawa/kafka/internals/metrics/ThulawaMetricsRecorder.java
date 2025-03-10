@@ -3,6 +3,8 @@ package com.thulawa.kafka.internals.metrics;
 import org.apache.kafka.common.metrics.Sensor;
 import org.apache.kafka.common.metrics.stats.CumulativeSum;
 import org.apache.kafka.common.metrics.stats.Rate;
+import org.apache.kafka.common.metrics.stats.Value;
+
 import java.util.LinkedHashMap;
 
 /**
@@ -24,11 +26,15 @@ public class ThulawaMetricsRecorder {
     private static final String COMBINED_TASKS_PROCESSED = "thulawa-combined-tasks-processed";
     private static final String COMBINED_TASKS_DESC = "Total number of all tasks processed";
 
+    private static final String TOTAL_EVENTS_PROCESSED = "thulawa-total-number-of-events-processed";
+    private static final String TOTAL_EVENTS_PROCESSED_DESC = "Total number of all events processed";
+
     private final ThulawaMetrics metrics;
     private final Sensor highPrioritySensor;
     private final Sensor lowPrioritySensor;
     private final Sensor combinedThroughputSensor;
     private final Sensor combinedTasksSensor;
+    private final Sensor totalEventsProcessedSensor;
 
     private final LinkedHashMap<String, String> tag = new LinkedHashMap<>();
 
@@ -71,6 +77,12 @@ public class ThulawaMetricsRecorder {
                 metrics.createMetricName(COMBINED_TASKS_PROCESSED, GROUP_NAME, COMBINED_TASKS_DESC),
                 new CumulativeSum()
         );
+
+        totalEventsProcessedSensor = metrics.addSensor(TOTAL_EVENTS_PROCESSED);
+        totalEventsProcessedSensor.add(
+                metrics.createMetricName(TOTAL_EVENTS_PROCESSED, GROUP_NAME, TOTAL_EVENTS_PROCESSED_DESC),
+                new Value()
+        );
     }
 
     /**
@@ -91,5 +103,9 @@ public class ThulawaMetricsRecorder {
         lowPrioritySensor.record(count);
         combinedThroughputSensor.record(count);
         combinedTasksSensor.record(count);
+    }
+
+    public void updateTotalProcessedCount(long count){
+        totalEventsProcessedSensor.record(count);
     }
 }

@@ -6,11 +6,11 @@ import com.thulawa.kafka.internals.metrics.ThulawaMetricsRecorder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.LongAdder;
 
 /**
  * ThulawaTaskManager handles the management of active tasks assigned to threads.
@@ -24,7 +24,8 @@ public class ThulawaTaskManager {
     private final ThulawaMetrics thulawaMetrics;
     private final ThulawaMetricsRecorder thulawaMetricsRecorder;
     private final Semaphore taskExecutionSemaphore = new Semaphore(100);
-    private final AtomicInteger successCounter = new AtomicInteger(0);
+    private final AtomicLong totalSuccessCount = new AtomicLong(0);
+    private final ConcurrentHashMap<String, LongAdder> keyBasesSuccessCounter = new ConcurrentHashMap<>();
     private final boolean microBatcherEnabled;
 
     private final Map<String, KeyProcessingState> keySetState = new ConcurrentHashMap<>();
@@ -60,7 +61,7 @@ public class ThulawaTaskManager {
     /**
      * Submits tasks from assignedActiveTasks to the appropriate thread pools.
      */
-    public void microBatcherDisabledTaskSubmission() {
+    public void submitTasksForProcessing() {
         while (this.state == State.ACTIVE) {
             for (String key : assignedActiveTasks.keySet()) {
                 Queue<ThulawaTask> taskQueue = assignedActiveTasks.get(key);
@@ -79,6 +80,8 @@ public class ThulawaTaskManager {
                     keySetState.put(key, KeyProcessingState.NOT_PROCESSING);
                     continue;
                 }
+
+                int totalEventsInTask = task.getThulawaEvents().size();
 
                 // Acquire semaphore to control concurrency
                 if (!taskExecutionSemaphore.tryAcquire()) {
@@ -102,7 +105,7 @@ public class ThulawaTaskManager {
                             keySetState.put(key, KeyProcessingState.NOT_PROCESSING);
 
                             if (t == null) {
-                                successCounter.incrementAndGet();
+                                incrementSuccessCount(key, totalEventsInTask);
                             } else {
                                 handleFailure(task, t);
                             }
@@ -113,10 +116,6 @@ public class ThulawaTaskManager {
                         });
             }
         }
-    }
-
-    public void microBatcherEnabledTaskSubmission() {
-        // Implementation goes here
     }
 
     private void handleFatalException(ThulawaTask task, Throwable fatalException) {
@@ -138,17 +137,29 @@ public class ThulawaTaskManager {
             }
 
             logger.info("Starting the Task Manager thread.");
-            Runnable taskSubmission = this.microBatcherEnabled
-                    ? this::microBatcherEnabledTaskSubmission
-                    : this::microBatcherDisabledTaskSubmission;
 
             this.threadPoolRegistry
                     .getThreadPool(ThreadPoolRegistry.THULAWA_TASK_MANAGER_THREAD_POOL)
-                    .submit(taskSubmission);
+                    .submit(this::submitTasksForProcessing);
 
             this.state = State.ACTIVE;
         }
     }
+
+    public void incrementSuccessCount(String key, int totalEventsInTask) {
+        keyBasesSuccessCounter.computeIfAbsent(key, k -> new LongAdder()).add(totalEventsInTask);
+        totalSuccessCount.addAndGet(totalEventsInTask);
+        thulawaMetricsRecorder.updateTotalProcessedCount(getTotalSuccessCount());
+    }
+
+    public long getSuccessCount(String key) {
+        return keyBasesSuccessCounter.getOrDefault(key, new LongAdder()).sum();
+    }
+
+    public long getTotalSuccessCount() {
+        return totalSuccessCount.get();
+    }
+
 
     private enum State {
         CREATED,
