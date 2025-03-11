@@ -1,5 +1,6 @@
 package com.thulawa.kafka.internals.processor;
 
+import com.thulawa.kafka.MicroBatcher.MicroBatcher;
 import com.thulawa.kafka.ThulawaEvent;
 import com.thulawa.kafka.ThulawaTaskManager;
 import com.thulawa.kafka.internals.configs.ThulawaConfigs;
@@ -31,6 +32,7 @@ public class ThulawaProcessor<KIn, VIn, KOut, VOut> implements Processor<KIn, VI
     private ThulawaScheduler thulawaScheduler;
     private ThulawaTaskManager thulawaTaskManager;
     private ThulawaMetrics thulawaMetrics;
+    private MicroBatcher microBatcher;
 
     private Processor processor;
     private ProcessorContext processorContext;
@@ -51,8 +53,9 @@ public class ThulawaProcessor<KIn, VIn, KOut, VOut> implements Processor<KIn, VI
 
         initializeRecoders(this.thulawaMetrics);
         this.queueManager = QueueManager.getInstance((Set<String>) context.appConfigs().get(HIGH_PRIORITY_KEY_MAP));
+        this.microBatcher = new MicroBatcher(this.queueManager);
         ThreadPoolRegistry threadPoolRegistry = ThreadPoolRegistry.getInstance((Integer) context.appConfigs().get(ThulawaConfigs.THULAWA_EXECUTOR_THREADPOOL_SIZE));
-        this.thulawaTaskManager = new ThulawaTaskManager(threadPoolRegistry, this.thulawaMetrics, this.thulawaMetricsRecorder, (Boolean) context.appConfigs().get(ThulawaConfigs.PRIORITIZED_ADAPTIVE_SCHEDULER_ENABLED));
+        this.thulawaTaskManager = new ThulawaTaskManager(threadPoolRegistry, this.thulawaMetrics, this.microBatcher, this.thulawaMetricsRecorder, (Boolean) context.appConfigs().get(ThulawaConfigs.PRIORITIZED_ADAPTIVE_SCHEDULER_ENABLED));
         this.thulawaScheduler = ThulawaScheduler.getInstance(this.queueManager, threadPoolRegistry,
                 this.thulawaTaskManager, thulawaMetrics, processor, (Set<String>) context.appConfigs().get(HIGH_PRIORITY_KEY_MAP),
                 (Boolean) context.appConfigs().get(ThulawaConfigs.PRIORITIZED_ADAPTIVE_SCHEDULER_ENABLED)

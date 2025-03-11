@@ -101,11 +101,13 @@ public class ThulawaScheduler implements Scheduler {
 
     private void processBatch() {
         String headQueueKey = queueManager.getEarliestQueueKey();
-        List<ThulawaEvent> batch = microbatcher.fetchBatch(headQueueKey, BATCH_SIZE);
-        if (!batch.isEmpty()) {
-            ThulawaTask task = new ThulawaTask(ThreadPoolRegistry.THULAWA_EXECUTOR_THREAD_POOL,
-                    batch);
-            thulawaTaskManager.addActiveTask(headQueueKey, task);
+        if(headQueueKey != null){
+            List<ThulawaEvent> batch = microbatcher.fetchAdaptiveBatch(headQueueKey);
+            if (!batch.isEmpty()) {
+                ThulawaTask task = new ThulawaTask(ThreadPoolRegistry.THULAWA_EXECUTOR_THREAD_POOL,
+                        batch);
+                thulawaTaskManager.addActiveTask(headQueueKey, task);
+            }
         }
     }
 
