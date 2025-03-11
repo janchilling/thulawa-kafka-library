@@ -147,6 +147,10 @@ public class QueueManager {
         }
     }
 
+    public int sizeOfKeyBasedQueue(String key){
+        return queues.get(key).size();
+    }
+
 
     public void setSchedulerObserver(Scheduler observer) {
         this.schedulerObserver = observer;

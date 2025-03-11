@@ -1,5 +1,6 @@
 package com.thulawa.kafka;
 
+import com.thulawa.kafka.MicroBatcher.MicroBatcher;
 import com.thulawa.kafka.internals.helpers.ThreadPoolRegistry;
 import com.thulawa.kafka.internals.metrics.ThulawaMetrics;
 import com.thulawa.kafka.internals.metrics.ThulawaMetricsRecorder;
@@ -22,6 +23,7 @@ public class ThulawaTaskManager {
     private final Map<String, Queue<ThulawaTask>> assignedActiveTasks = new ConcurrentHashMap<>();
     private final ThreadPoolRegistry threadPoolRegistry;
     private final ThulawaMetrics thulawaMetrics;
+    private final MicroBatcher microBatcher;
     private final ThulawaMetricsRecorder thulawaMetricsRecorder;
     private final Semaphore taskExecutionSemaphore = new Semaphore(100);
     private final AtomicLong totalSuccessCount = new AtomicLong(0);
@@ -31,10 +33,11 @@ public class ThulawaTaskManager {
     private final Map<String, KeyProcessingState> keySetState = new ConcurrentHashMap<>();
     private State state;
 
-    public ThulawaTaskManager(ThreadPoolRegistry threadPoolRegistry, ThulawaMetrics thulawaMetrics,
+    public ThulawaTaskManager(ThreadPoolRegistry threadPoolRegistry, ThulawaMetrics thulawaMetrics, MicroBatcher microBatcher,
                               ThulawaMetricsRecorder thulawaMetricsRecorder, boolean microBatcherEnabled) {
         this.threadPoolRegistry = threadPoolRegistry;
         this.thulawaMetrics = thulawaMetrics;
+        this.microBatcher = microBatcher;
         this.thulawaMetricsRecorder = thulawaMetricsRecorder;
         this.microBatcherEnabled = microBatcherEnabled;
         this.state = State.CREATED;
@@ -66,24 +69,20 @@ public class ThulawaTaskManager {
             for (String key : assignedActiveTasks.keySet()) {
                 Queue<ThulawaTask> taskQueue = assignedActiveTasks.get(key);
 
-                // Ensure the queue exists, is not empty, and is in NOT_PROCESSING state
                 if (taskQueue == null || taskQueue.isEmpty() || keySetState.get(key) == KeyProcessingState.PROCESSING) {
                     continue;
                 }
 
-                // Mark key as processing
                 keySetState.put(key, KeyProcessingState.PROCESSING);
-
-                // Take the head of the queue
                 ThulawaTask task = taskQueue.poll();
                 if (task == null) {
                     keySetState.put(key, KeyProcessingState.NOT_PROCESSING);
                     continue;
                 }
 
+                long startTime = System.nanoTime();
                 int totalEventsInTask = task.getThulawaEvents().size();
 
-                // Acquire semaphore to control concurrency
                 if (!taskExecutionSemaphore.tryAcquire()) {
                     keySetState.put(key, KeyProcessingState.NOT_PROCESSING);
                     continue;
@@ -98,14 +97,17 @@ public class ThulawaTaskManager {
                             }
                         }, Executors.newThreadPerTaskExecutor(Thread.ofVirtual().factory()))
                         .whenComplete((r, t) -> {
-                            // Release semaphore
-                            taskExecutionSemaphore.release();
+                            long endTime = System.nanoTime();
+                            long processingTime = TimeUnit.NANOSECONDS.toMillis(endTime - startTime);
+                            microBatcher.updateProcessingLatency(key, processingTime, totalEventsInTask);
 
-                            // Mark key as NOT_PROCESSING so next task can be submitted
+                            taskExecutionSemaphore.release();
                             keySetState.put(key, KeyProcessingState.NOT_PROCESSING);
 
                             if (t == null) {
                                 incrementSuccessCount(key, totalEventsInTask);
+                                double avgLatency = microBatcher.getProcessingLatencyAvg(key);
+//                                logger.info("Updated processing latency average for {}: {} ms", key, avgLatency);
                             } else {
                                 handleFailure(task, t);
                             }
