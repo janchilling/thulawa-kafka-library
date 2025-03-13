@@ -57,6 +57,9 @@ public class QueueManager {
                 headEvent = thulawaEvent;
                 headQueueKey = queueKey;
             }
+
+//            removeInactiveQueues();
+
         } finally {
             lock.unlock();
         }
@@ -155,4 +158,16 @@ public class QueueManager {
     public void setSchedulerObserver(Scheduler observer) {
         this.schedulerObserver = observer;
     }
+
+    private void removeInactiveQueues() {
+        for (String key : new HashSet<>(queues.keySet())) {
+            KeyBasedQueue queue = queues.get(key);
+            if (queue != null && queue.isEmpty()) {
+                queues.remove(key);
+                queueEarliestTimestamps.remove(key);
+            }
+        }
+    }
+
+
 }
