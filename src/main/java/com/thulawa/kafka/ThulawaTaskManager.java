@@ -20,7 +20,7 @@ public class ThulawaTaskManager {
 
     private static final Logger logger = LoggerFactory.getLogger(ThulawaTaskManager.class);
 
-    private final Map<String, Queue<ThulawaTask>> assignedActiveTasks = new ConcurrentHashMap<>();
+    private final Map<String, ConcurrentLinkedQueue<ThulawaTask>> assignedActiveTasks = new ConcurrentHashMap<>();
     private final ThreadPoolRegistry threadPoolRegistry;
     private final ThulawaMetrics thulawaMetrics;
     private final MicroBatcher microBatcher;
@@ -31,6 +31,7 @@ public class ThulawaTaskManager {
     private final boolean microBatcherEnabled;
 
     private final Map<String, KeyProcessingState> keySetState = new ConcurrentHashMap<>();
+
     private State state;
 
     public ThulawaTaskManager(ThreadPoolRegistry threadPoolRegistry, ThulawaMetrics thulawaMetrics, MicroBatcher microBatcher,
@@ -67,7 +68,7 @@ public class ThulawaTaskManager {
     public void submitTasksForProcessing() {
         while (this.state == State.ACTIVE) {
             for (String key : assignedActiveTasks.keySet()) {
-                Queue<ThulawaTask> taskQueue = assignedActiveTasks.get(key);
+                ConcurrentLinkedQueue<ThulawaTask> taskQueue = assignedActiveTasks.get(key);
 
                 if (taskQueue == null || taskQueue.isEmpty() || keySetState.get(key) == KeyProcessingState.PROCESSING) {
                     continue;
