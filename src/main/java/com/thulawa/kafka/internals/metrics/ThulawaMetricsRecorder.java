@@ -29,6 +29,9 @@ public class ThulawaMetricsRecorder {
     private static final String TOTAL_EVENTS_PROCESSED = "thulawa-total-number-of-events-processed";
     private static final String TOTAL_EVENTS_PROCESSED_DESC = "Total number of all events processed";
 
+    private static final String TOTAL_EVENTS_PROCESSED_RATE = "thulawa-event-processing-rate";
+    private static final String TOTAL_EVENTS_PROCESSED_RATE_DESC = "Rate of successfully processing Thulawa events";
+
     private final ThulawaMetrics metrics;
     private final Sensor highPrioritySensor;
     private final Sensor lowPrioritySensor;
@@ -82,6 +85,10 @@ public class ThulawaMetricsRecorder {
         totalEventsProcessedSensor.add(
                 metrics.createMetricName(TOTAL_EVENTS_PROCESSED, GROUP_NAME, TOTAL_EVENTS_PROCESSED_DESC),
                 new Value()
+        );
+        totalEventsProcessedSensor.add(
+                metrics.createMetricName(TOTAL_EVENTS_PROCESSED_RATE, GROUP_NAME, TOTAL_EVENTS_PROCESSED_RATE_DESC),
+                new Rate()
         );
     }
 
