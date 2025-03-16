@@ -11,16 +11,15 @@ public class MicroBatcher {
 
     private final QueueManager queueManager;
 
-    // Holds the running processing latency average per key
     private final Map<String, Double> processingLatencyAvg = new HashMap<>();
     private final Map<String, Double> eventsPerTaskAvg = new HashMap<>();
     private final Map<String, Long> taskCount = new HashMap<>();
     private final Map<String, Double> batchSizeEWMA = new ConcurrentHashMap<>();
 
-    private static final double LATENCY_THRESHOLD = 500.0;  // Latency threshold in ms
-    private static final double EWMA_ALPHA = 0.2;  // Weight for smoothing
+    private static final double LATENCY_THRESHOLD = 500.0;
+    private static final double EWMA_ALPHA = 0.2;
     private static final int MIN_BATCH_SIZE = 1;
-    private static final int MAX_BATCH_SIZE = 100;  // Define max batch size based on system capability
+    private static final int MAX_BATCH_SIZE = 100;
 
     public MicroBatcher(QueueManager queueManager) {
         this.queueManager = queueManager;
@@ -30,7 +29,7 @@ public class MicroBatcher {
      * Retrieves a batch of records from the queue for the given key.
      *
      * @param headQueueKey The key to fetch records for.
-     * @param batchSize The number of records to fetch in a batch.
+     * @param batchSize    The number of records to fetch in a batch.
      * @return A list of ThulawaEvent records.
      */
     public List<ThulawaEvent> fetchBatch(String headQueueKey, int batchSize) {
@@ -46,20 +45,17 @@ public class MicroBatcher {
     public synchronized List<ThulawaEvent> fetchAdaptiveBatch(String key) {
         int queueSize = queueManager.sizeOfKeyBasedQueue(key);
         if (queueSize == 0) {
-            return List.of(); // No events available
+            return List.of();
         }
 
         double avgLatency = processingLatencyAvg.getOrDefault(key, LATENCY_THRESHOLD);
         double avgEventsPerTask = eventsPerTaskAvg.getOrDefault(key, 10.0);
 
-        // Adjust batch size based on latency and event processing rate
-        double latencyFactor = LATENCY_THRESHOLD / (avgLatency + 1); // Normalize latency effect
+        double latencyFactor = LATENCY_THRESHOLD / (avgLatency + 1);
         double adjustedBatchSize = avgEventsPerTask * latencyFactor;
 
-        // Ensure batch size remains within safe limits
         int proposedBatchSize = (int) Math.min(Math.max(adjustedBatchSize, MIN_BATCH_SIZE), queueSize);
 
-        // Apply Exponential Weighted Moving Average (EWMA) for smooth adjustments
         double previousBatchSize = batchSizeEWMA.getOrDefault(key, (double) proposedBatchSize);
         double smoothedBatchSize = EWMA_ALPHA * proposedBatchSize + (1 - EWMA_ALPHA) * previousBatchSize;
 
@@ -72,7 +68,7 @@ public class MicroBatcher {
     /**
      * Updates the running average of processing latency per key.
      *
-     * @param key The key associated with the task.
+     * @param key            The key associated with the task.
      * @param processingTime The processing time of the completed task.
      */
     public void updateProcessingLatency(String key, long processingTime, int totalEventsInTask) {
@@ -86,7 +82,6 @@ public class MicroBatcher {
         double prevProcessingLatencyAvg = processingLatencyAvg.get(key);
         double prevEventPerTaskAvg = eventsPerTaskAvg.get(key);
 
-        // Compute the running average
         double newProcessingLatencyAvg = prevProcessingLatencyAvg + (processingTime - prevProcessingLatencyAvg) / count;
         processingLatencyAvg.put(key, newProcessingLatencyAvg);
 
