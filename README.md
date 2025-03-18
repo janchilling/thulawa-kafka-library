@@ -1,6 +1,6 @@
-# Thulawa Task Processing System
+# Thulawa Stream Processing Library
 
-This repository contains the implementation of the **Thulawa Task Processing System**, a Kafka-based event processing architecture using **virtual threads** for efficient task execution.
+This repository contains the implementation of the **Thulawa Stream Processing Library**, a Kafka Streams based event processing architecture using **virtual threads** for efficient task execution.
 
 ## 📌 Architecture Overview
 
@@ -45,7 +45,7 @@ The system consists of three main components running in separate threads:
 
 ## 🏗️ Setup & Installation
 ```bash  
-git clone https://github.com/your-repo/thulawa-task-processor.git  
+git clone https://github.com/janchilling/thulawa-kafka-library.git  
 cd thulawa-task-processor  
 mvn clean install  
 ```
