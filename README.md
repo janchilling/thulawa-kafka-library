@@ -44,9 +44,12 @@ The system consists of three main components running in separate threads:
 ✅ **Java Virtual Threads for high concurrency**
 
 ## 🏗️ Setup & Installation
+
+**Prerequisite:** Java 21 or above is required.
+
 ```bash  
 git clone https://github.com/janchilling/thulawa-kafka-library.git  
-cd thulawa-task-processor  
+cd thulawa-kafka-library  
 mvn clean install  
 ```
 
