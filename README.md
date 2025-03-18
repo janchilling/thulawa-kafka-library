@@ -45,7 +45,7 @@ The system consists of three main components running in separate threads:
 
 ## 🏗️ Setup & Installation
 ```bash  
-git clone https://github.com/your-repo/thulawa-task-processor.git  
+git clone https://github.com/janchilling/thulawa-kafka-library.git  
 cd thulawa-task-processor  
 mvn clean install  
 ```
