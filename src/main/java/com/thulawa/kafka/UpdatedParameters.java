@@ -25,7 +25,7 @@ public class UpdatedParameters {
     public final Properties props;
 //    public final ThulawaClientSupplier clientSupplier;
 
-    public static final Set<String> highPriorityKeySet = new HashSet<>();
+    public static final Set<Object> highPriorityKeySet = new HashSet<>();
 
     public UpdatedParameters(Topology topology, Properties props) {
         this.topology = topology;

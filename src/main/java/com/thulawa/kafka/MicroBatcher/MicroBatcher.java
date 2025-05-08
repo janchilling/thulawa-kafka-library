@@ -11,10 +11,10 @@ public class MicroBatcher {
 
     private final QueueManager queueManager;
 
-    private final Map<String, Double> processingLatencyAvg = new HashMap<>();
-    private final Map<String, Double> eventsPerTaskAvg = new HashMap<>();
-    private final Map<String, Long> taskCount = new HashMap<>();
-    private final Map<String, Double> batchSizeEWMA = new ConcurrentHashMap<>();
+    private final Map<Object, Double> processingLatencyAvg = new HashMap<>();
+    private final Map<Object, Double> eventsPerTaskAvg = new HashMap<>();
+    private final Map<Object, Long> taskCount = new HashMap<>();
+    private final Map<Object, Double> batchSizeEWMA = new ConcurrentHashMap<>();
 
     private static final double LATENCY_THRESHOLD = 500.0;
     private static final double EWMA_ALPHA = 0.2;
@@ -32,7 +32,7 @@ public class MicroBatcher {
      * @param batchSize    The number of records to fetch in a batch.
      * @return A list of ThulawaEvent records.
      */
-    public List<ThulawaEvent> fetchBatch(String headQueueKey, int batchSize) {
+    public List<ThulawaEvent> fetchBatch(Object headQueueKey, int batchSize) {
         return queueManager.getRecordBatchesFromKBQueues(headQueueKey, batchSize);
     }
 
@@ -42,7 +42,7 @@ public class MicroBatcher {
      * @param key The key for which a batch needs to be fetched.
      * @return A batch of events.
      */
-    public synchronized List<ThulawaEvent> fetchAdaptiveBatch(String key) {
+    public synchronized List<ThulawaEvent> fetchAdaptiveBatch(Object key) {
         int queueSize = queueManager.sizeOfKeyBasedQueue(key);
         if (queueSize == 0) {
             return List.of();
@@ -71,7 +71,7 @@ public class MicroBatcher {
      * @param key            The key associated with the task.
      * @param processingTime The processing time of the completed task.
      */
-    public void updateProcessingLatency(String key, long processingTime, int totalEventsInTask) {
+    public void updateProcessingLatency(Object key, long processingTime, int totalEventsInTask) {
         taskCount.putIfAbsent(key, 0L);
         processingLatencyAvg.putIfAbsent(key, 0.0);
         eventsPerTaskAvg.putIfAbsent(key, 0.0);
@@ -96,7 +96,7 @@ public class MicroBatcher {
      * @param key The key to fetch the latency for.
      * @return The average latency, or 0.0 if no data exists.
      */
-    public double getProcessingLatencyAvg(String key) {
+    public double getProcessingLatencyAvg(Object key) {
         return processingLatencyAvg.getOrDefault(key, 0.0);
     }
 
@@ -106,7 +106,7 @@ public class MicroBatcher {
      * @param key The key to fetch the latency for.
      * @return The average latency, or 0.0 if no data exists.
      */
-    public double getEventPerTaskAvg(String key) {
+    public double getEventPerTaskAvg(Object key) {
         return processingLatencyAvg.getOrDefault(key, 0.0);
     }
 }

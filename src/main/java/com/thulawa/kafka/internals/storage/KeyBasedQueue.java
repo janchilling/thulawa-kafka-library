@@ -14,7 +14,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  */
 public class KeyBasedQueue {
 
-    private final String recordKey;
+    private final Object recordKey;
 
     private final ConcurrentLinkedQueue<ThulawaEvent> recordsQueue;
 //    private ThulawaMetricsRecorder thulawaMetricsRecorder;
@@ -25,7 +25,7 @@ public class KeyBasedQueue {
      *
      * @param recordKey The key associated with this queue.
      */
-    public KeyBasedQueue(String recordKey) {
+    public KeyBasedQueue(Object recordKey) {
         this.recordsQueue = new ConcurrentLinkedQueue<>();
         this.recordKey = recordKey;
     }
