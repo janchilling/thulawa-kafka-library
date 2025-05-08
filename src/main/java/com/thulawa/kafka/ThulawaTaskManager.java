@@ -20,17 +20,17 @@ public class ThulawaTaskManager {
 
     private static final Logger logger = LoggerFactory.getLogger(ThulawaTaskManager.class);
 
-    private final Map<String, Queue<ThulawaTask>> assignedActiveTasks = new ConcurrentHashMap<>();
+    private final Map<Object, Queue<ThulawaTask>> assignedActiveTasks = new ConcurrentHashMap<>();
     private final ThreadPoolRegistry threadPoolRegistry;
     private final ThulawaMetrics thulawaMetrics;
     private final MicroBatcher microBatcher;
     private final ThulawaMetricsRecorder thulawaMetricsRecorder;
     private final Semaphore taskExecutionSemaphore = new Semaphore(100);
     private final AtomicLong totalSuccessCount = new AtomicLong(0);
-    private final ConcurrentHashMap<String, LongAdder> keyBasesSuccessCounter = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Object, LongAdder> keyBasesSuccessCounter = new ConcurrentHashMap<>();
     private final boolean microBatcherEnabled;
 
-    private final Map<String, KeyProcessingState> keySetState = new ConcurrentHashMap<>();
+    private final Map<Object, KeyProcessingState> keySetState = new ConcurrentHashMap<>();
     private State state;
 
     public ThulawaTaskManager(ThreadPoolRegistry threadPoolRegistry, ThulawaMetrics thulawaMetrics, MicroBatcher microBatcher,
@@ -50,7 +50,7 @@ public class ThulawaTaskManager {
      * @param key         The key of the task.
      * @param thulawaTask The task to add.
      */
-    public void addActiveTask(String key, ThulawaTask thulawaTask) {
+    public void addActiveTask(Object key, ThulawaTask thulawaTask) {
         assignedActiveTasks.computeIfAbsent(key, k -> new ConcurrentLinkedQueue<>()).add(thulawaTask);
 
         // Ensure key is marked as NOT_PROCESSING if it's a new key
@@ -66,7 +66,7 @@ public class ThulawaTaskManager {
      */
     public void submitTasksForProcessing() {
         while (this.state == State.ACTIVE) {
-            for (String key : assignedActiveTasks.keySet()) {
+            for (Object key : assignedActiveTasks.keySet()) {
                 Queue<ThulawaTask> taskQueue = assignedActiveTasks.get(key);
 
                 if (taskQueue == null || taskQueue.isEmpty() || keySetState.get(key) == KeyProcessingState.PROCESSING) {
@@ -148,13 +148,13 @@ public class ThulawaTaskManager {
         }
     }
 
-    public void incrementSuccessCount(String key, int totalEventsInTask) {
+    public void incrementSuccessCount(Object key, int totalEventsInTask) {
         keyBasesSuccessCounter.computeIfAbsent(key, k -> new LongAdder()).add(totalEventsInTask);
         totalSuccessCount.addAndGet(totalEventsInTask);
         thulawaMetricsRecorder.updateTotalProcessedCount(getTotalSuccessCount());
     }
 
-    public long getSuccessCount(String key) {
+    public long getSuccessCount(Object key) {
         return keyBasesSuccessCounter.getOrDefault(key, new LongAdder()).sum();
     }
 

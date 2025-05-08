@@ -28,7 +28,7 @@ public class ThulawaConfigs extends AbstractConfig {
     private static final ConfigDef definition = new ConfigDef()
             .define(
                     HIGH_PRIORITY_KEY_LIST,
-                    ConfigDef.Type.STRING,
+                    ConfigDef.Type.CLASS,
                     ConfigDef.Importance.HIGH,
                     HIGH_PRIORITY_KEY_LIST_DESCRIPTION
             )

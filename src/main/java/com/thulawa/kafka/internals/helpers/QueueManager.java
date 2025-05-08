@@ -19,28 +19,28 @@ public class QueueManager {
     private static QueueManager instance;
     private static final String COMMON_QUEUE_KEY = "low.priority.keys";
 
-    private final Map<String, KeyBasedQueue> queues = new ConcurrentHashMap<>();
-    private final Map<String, Long> queueEarliestTimestamps = new ConcurrentHashMap<>();
-    private final Set<String> highPriorityKeySet;
+    private final Map<Object, KeyBasedQueue> queues = new ConcurrentHashMap<>();
+    private final Map<Object, Long> queueEarliestTimestamps = new ConcurrentHashMap<>();
+    private final Set<Object> highPriorityKeySet;
     private Scheduler schedulerObserver;
     private final ReentrantLock lock = new ReentrantLock();
 
     private ThulawaEvent headEvent;
-    private String headQueueKey;
+    private Object headQueueKey;
 
-    private QueueManager(Set<String> highPriorityKeySet) {
+    private QueueManager(Set<Object> highPriorityKeySet) {
         this.highPriorityKeySet = highPriorityKeySet;
     }
 
-    public static synchronized QueueManager getInstance(Set<String> highPriorityKeySet) {
+    public static synchronized QueueManager getInstance(Set<Object> highPriorityKeySet) {
         if (instance == null) {
             instance = new QueueManager(highPriorityKeySet);
         }
         return instance;
     }
 
-    public void addToKeyBasedQueue(String key, ThulawaEvent thulawaEvent) {
-        String queueKey = (key != null) ? key : COMMON_QUEUE_KEY;
+    public void addToKeyBasedQueue(Object key, ThulawaEvent thulawaEvent) {
+        Object queueKey = (key != null) ? key : COMMON_QUEUE_KEY;
         long timestamp = thulawaEvent.getReceivedSystemTime();
 
         lock.lock();
@@ -69,7 +69,7 @@ public class QueueManager {
         }
     }
 
-    public String getEarliestQueueKey() {
+    public Object getEarliestQueueKey() {
         lock.lock();
         try {
             return headQueueKey;
@@ -99,7 +99,7 @@ public class QueueManager {
             // Recalculate the new head event
             headEvent = null;
             headQueueKey = null;
-            for (Map.Entry<String, Long> entry : queueEarliestTimestamps.entrySet()) {
+            for (Map.Entry<Object, Long> entry : queueEarliestTimestamps.entrySet()) {
                 if (headEvent == null || entry.getValue() < headEvent.getReceivedSystemTime()) {
                     headQueueKey = entry.getKey();
                     headEvent = queues.get(entry.getKey()).peek();
@@ -111,10 +111,10 @@ public class QueueManager {
         }
     }
 
-    public List<ThulawaEvent> getRecordBatchesFromKBQueues(String key, int batchSize) {
+    public List<ThulawaEvent> getRecordBatchesFromKBQueues(Object key, int batchSize) {
         lock.lock();
         try {
-            String queueKey = (key != null) ? key : COMMON_QUEUE_KEY;
+            Object queueKey = (key != null) ? key : COMMON_QUEUE_KEY;
             KeyBasedQueue queue = queues.get(queueKey);
 
             if (queue == null || queue.isEmpty()) {
@@ -137,7 +137,7 @@ public class QueueManager {
             // Recalculate head event
             headEvent = null;
             headQueueKey = null;
-            for (Map.Entry<String, Long> entry : queueEarliestTimestamps.entrySet()) {
+            for (Map.Entry<Object, Long> entry : queueEarliestTimestamps.entrySet()) {
                 if (headEvent == null || entry.getValue() < headEvent.getReceivedSystemTime()) {
                     headQueueKey = entry.getKey();
                     headEvent = queues.get(entry.getKey()).peek();
@@ -150,7 +150,7 @@ public class QueueManager {
         }
     }
 
-    public int sizeOfKeyBasedQueue(String key){
+    public int sizeOfKeyBasedQueue(Object key){
         return queues.get(key).size();
     }
 
@@ -160,7 +160,7 @@ public class QueueManager {
     }
 
     private void removeInactiveQueues() {
-        for (String key : new HashSet<>(queues.keySet())) {
+        for (Object key : new HashSet<>(queues.keySet())) {
             KeyBasedQueue queue = queues.get(key);
             if (queue != null && queue.isEmpty()) {
                 queues.remove(key);
