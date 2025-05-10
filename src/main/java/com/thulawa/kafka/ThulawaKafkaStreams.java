@@ -19,7 +19,8 @@ public class ThulawaKafkaStreams extends KafkaStreams {
     private ThulawaClientSupplier thulawaClientSupplier;
     private final ThulawaMetrics thulawaMetrics;
 
-    public ThulawaKafkaStreams(Topology topology, Properties props) {
+    public ThulawaKafkaStreams(Topology topology,
+                               Properties props) {
         this( new UpdatedParameters(topology, props) );
     }
 

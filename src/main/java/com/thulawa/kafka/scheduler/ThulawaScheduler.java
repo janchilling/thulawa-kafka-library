@@ -30,9 +30,12 @@ public class ThulawaScheduler implements Scheduler {
     private final boolean adaptiveSchedulerEnabled;
     private State state;
 
-    private ThulawaScheduler(QueueManager queueManager, ThreadPoolRegistry threadPoolRegistry,
-                             ThulawaTaskManager thulawaTaskManager, ThulawaMetrics thulawaMetrics,
-                             Set<String> highPriorityKeySet, boolean adaptiveSchedulerEnabled) {
+    private ThulawaScheduler(QueueManager queueManager,
+                             ThreadPoolRegistry threadPoolRegistry,
+                             ThulawaTaskManager thulawaTaskManager,
+                             ThulawaMetrics thulawaMetrics,
+                             Set<String> highPriorityKeySet,
+                             boolean adaptiveSchedulerEnabled) {
         this.queueManager = queueManager;
         this.threadPoolRegistry = threadPoolRegistry;
         this.thulawaTaskManager = thulawaTaskManager;
@@ -51,8 +54,13 @@ public class ThulawaScheduler implements Scheduler {
                                                             Set<String> highPriorityKeySet,
                                                             boolean adaptiveSchedulerEnabled) {
         if (instance == null) {
-            instance = new ThulawaScheduler(queueManager, threadPoolRegistry, thulawaTaskManager, thulawaMetrics,
-                    highPriorityKeySet, adaptiveSchedulerEnabled);
+            instance = new ThulawaScheduler(
+                    queueManager,
+                    threadPoolRegistry,
+                    thulawaTaskManager,
+                    thulawaMetrics,
+                    highPriorityKeySet,
+                    adaptiveSchedulerEnabled);
         }
         return instance;
     }

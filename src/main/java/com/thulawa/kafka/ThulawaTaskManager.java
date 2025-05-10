@@ -33,8 +33,11 @@ public class ThulawaTaskManager {
     private final Map<Object, KeyProcessingState> keySetState = new ConcurrentHashMap<>();
     private State state;
 
-    public ThulawaTaskManager(ThreadPoolRegistry threadPoolRegistry, ThulawaMetrics thulawaMetrics, MicroBatcher microBatcher,
-                              ThulawaMetricsRecorder thulawaMetricsRecorder, boolean microBatcherEnabled) {
+    public ThulawaTaskManager(ThreadPoolRegistry threadPoolRegistry,
+                              ThulawaMetrics thulawaMetrics,
+                              MicroBatcher microBatcher,
+                              ThulawaMetricsRecorder thulawaMetricsRecorder,
+                              boolean microBatcherEnabled) {
         this.threadPoolRegistry = threadPoolRegistry;
         this.thulawaMetrics = thulawaMetrics;
         this.microBatcher = microBatcher;

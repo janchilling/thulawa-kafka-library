@@ -52,15 +52,35 @@ public class ThulawaProcessor<KIn, VIn, KOut, VOut> implements Processor<KIn, VI
         this.thulawaMetrics = (ThulawaMetrics) context.appConfigs().get(THULAWA_METRICS_CONFIG);
 
         initializeRecoders(this.thulawaMetrics);
-        this.queueManager = QueueManager.getInstance((Set<Object>) context.appConfigs().get(HIGH_PRIORITY_KEY_MAP));
-        this.microBatcher = new MicroBatcher(this.queueManager);
-        ThreadPoolRegistry threadPoolRegistry = ThreadPoolRegistry.getInstance((Integer) context.appConfigs().get(ThulawaConfigs.THULAWA_EXECUTOR_THREADPOOL_SIZE));
-        this.thulawaTaskManager = new ThulawaTaskManager(threadPoolRegistry, this.thulawaMetrics, this.microBatcher, this.thulawaMetricsRecorder, (Boolean) context.appConfigs().get(ThulawaConfigs.PRIORITIZED_ADAPTIVE_SCHEDULER_ENABLED));
-        this.thulawaScheduler = ThulawaScheduler.getInstance(this.queueManager, threadPoolRegistry,
-                this.thulawaTaskManager, thulawaMetrics, (Set<String>) context.appConfigs().get(HIGH_PRIORITY_KEY_MAP),
+
+        this.queueManager = QueueManager.getInstance(
+                (Set<Object>) context.appConfigs().get(HIGH_PRIORITY_KEY_MAP)
+        );
+
+        this.microBatcher = new MicroBatcher(
+                this.queueManager
+        );
+
+        ThreadPoolRegistry threadPoolRegistry = ThreadPoolRegistry.getInstance(
+                (Integer) context.appConfigs().get(ThulawaConfigs.THULAWA_EXECUTOR_THREADPOOL_SIZE)
+        );
+
+        this.thulawaTaskManager = new ThulawaTaskManager(
+                threadPoolRegistry,
+                this.thulawaMetrics,
+                this.microBatcher,
+                this.thulawaMetricsRecorder,
                 (Boolean) context.appConfigs().get(ThulawaConfigs.PRIORITIZED_ADAPTIVE_SCHEDULER_ENABLED)
         );
 
+        this.thulawaScheduler = ThulawaScheduler.getInstance(
+                this.queueManager, threadPoolRegistry,
+                this.thulawaTaskManager,
+                thulawaMetrics,
+                (Set<String>) context.appConfigs().get(HIGH_PRIORITY_KEY_MAP),
+                (Boolean) context.appConfigs().get(
+                ThulawaConfigs.PRIORITIZED_ADAPTIVE_SCHEDULER_ENABLED)
+        );
     }
 
     private void initializeRecoders(ThulawaMetrics thulawaMetrics) {
@@ -73,7 +93,7 @@ public class ThulawaProcessor<KIn, VIn, KOut, VOut> implements Processor<KIn, VI
 
         KIn key = record.key();
         long receivedSystemTIme = processorContext.currentSystemTimeMs();
-        Runnable runnableProcess = () ->{
+        Runnable runnableProcess = () -> {
             this.processor.process(record);
         };
 
