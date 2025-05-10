@@ -9,7 +9,8 @@ public class ThulawaTask {
     private final String threadPoolName;
     private final List<ThulawaEvent> thulawaEvents;
 
-    public ThulawaTask(String threadPoolName, List<ThulawaEvent> thulawaEvents) {
+    public ThulawaTask(String threadPoolName,
+                       List<ThulawaEvent> thulawaEvents) {
         this.threadPoolName = threadPoolName;
         this.thulawaEvents = thulawaEvents;
     }

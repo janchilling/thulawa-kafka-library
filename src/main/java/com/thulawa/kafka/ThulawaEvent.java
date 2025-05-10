@@ -10,7 +10,9 @@ public class ThulawaEvent {
     private final Runnable runnableProcess;
 
 
-    public ThulawaEvent(Record<?, ?> record, long receivedSystemTime, Runnable runnableProcess) {
+    public ThulawaEvent(Record<?, ?> record,
+                        long receivedSystemTime,
+                        Runnable runnableProcess) {
         this.recordKey = record.key();
         this.recordValue = record.value();
         this.receivedSystemTime = receivedSystemTime;
