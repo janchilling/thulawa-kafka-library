@@ -8,44 +8,66 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * !!Important!! - This class(ThreadPools) are not needed if we are using Virtual Threads.
- * But Kept this class since Scheduler and Task manager are running in threadpools, can shift them to virtual threads as well, but kept for now
- * Furthermore, task processing is now done in virtual threads.
+ * Thread manager where:
+ * - Scheduler and Task Manager run as dedicated threads (not in a thread pool)
+ * - Executor uses a configurable thread pool
  */
 public class ThreadPoolRegistry {
 
     private static final Logger logger = LoggerFactory.getLogger(ThreadPoolRegistry.class);
     private static ThreadPoolRegistry instance;
 
-    public static final String THULAWA_SCHEDULING_THREAD_POOL = "Thulawa-Scheduling-Thread-Pool";
-    public static final String THULAWA_TASK_MANAGER_THREAD_POOL = "Thulawa-Task-Manager-Thread-Pool";
     public static final String THULAWA_EXECUTOR_THREAD_POOL = "Thulawa-Executor-Thread-Pool";
 
+    private final Map<String, Thread> dedicatedThreads = new ConcurrentHashMap<>();
     private final Map<String, ThreadPoolExecutor> threadPools = new ConcurrentHashMap<>();
 
-    private ThreadPoolRegistry(int corePoolSize) {
-        // Register thread pools with better configurations
-        this.registerThreadPool(THULAWA_SCHEDULING_THREAD_POOL, 2, 4, 100);
-        this.registerThreadPool(THULAWA_TASK_MANAGER_THREAD_POOL, 2, 5, 100);
-        this.registerThreadPool(THULAWA_EXECUTOR_THREAD_POOL, corePoolSize, 10, 500);
+    private ThreadPoolRegistry(int executorCorePoolSize) {
+        registerExecutorThreadPool(THULAWA_EXECUTOR_THREAD_POOL, executorCorePoolSize, 10, 500);
     }
 
-    public static synchronized ThreadPoolRegistry getInstance(int corePoolSize) {
+    public static synchronized ThreadPoolRegistry getInstance(int executorCorePoolSize) {
         if (instance == null) {
-            instance = new ThreadPoolRegistry(corePoolSize);
+            instance = new ThreadPoolRegistry(executorCorePoolSize);
         }
         return instance;
     }
 
-    /**
-     * Creates and registers a thread pool with dynamic scaling.
-     *
-     * @param name         The unique name of the thread pool.
-     * @param corePoolSize Minimum number of threads.
-     * @param maxPoolSize  Maximum number of threads.
-     * @param queueSize    The task queue size.
-     */
-    public void registerThreadPool(String name, int corePoolSize, int maxPoolSize, int queueSize) {
+    // ------------------- Dedicated Threads -------------------
+
+    public void startDedicatedThread(String name, Runnable task) {
+        if (dedicatedThreads.containsKey(name)) {
+            throw new IllegalArgumentException("Thread with name " + name + " already exists.");
+        }
+
+        Thread thread = new Thread(task);
+        thread.setName(name);
+        thread.setDaemon(true);
+        thread.start();
+
+        dedicatedThreads.put(name, thread);
+        logger.info("Started dedicated thread: {}", name);
+    }
+
+    public void stopDedicatedThread(String name) {
+        Thread thread = dedicatedThreads.remove(name);
+        if (thread != null) {
+            thread.interrupt();
+            logger.info("Stopped dedicated thread: {}", name);
+        }
+    }
+
+    public void stopAllDedicatedThreads() {
+        dedicatedThreads.forEach((name, thread) -> {
+            thread.interrupt();
+            logger.info("Stopped dedicated thread: {}", name);
+        });
+        dedicatedThreads.clear();
+    }
+
+    // ------------------- Executor Thread Pool -------------------
+
+    public void registerExecutorThreadPool(String name, int corePoolSize, int maxPoolSize, int queueSize) {
         if (threadPools.containsKey(name)) {
             throw new IllegalArgumentException("Thread pool with name " + name + " already exists.");
         }
@@ -61,48 +83,20 @@ public class ThreadPoolRegistry {
                 runnable -> {
                     Thread thread = new Thread(runnable);
                     thread.setName(name + "-Thread-" + threadNameIndex.getAndIncrement());
-                    thread.setDaemon(true);  // Ensure proper shutdown
+                    thread.setDaemon(true);
                     return thread;
                 },
-                new ThreadPoolExecutor.CallerRunsPolicy() // Prevent task rejection
+                new ThreadPoolExecutor.CallerRunsPolicy()
         );
 
         threadPools.put(name, threadPool);
+        logger.info("Registered executor thread pool: {}", name);
     }
 
-    /**
-     * Retrieves a thread pool by name.
-     *
-     * @param name The name of the thread pool.
-     * @return The thread pool executor.
-     */
     public ThreadPoolExecutor getThreadPool(String name) {
         return threadPools.get(name);
     }
 
-    /**
-     * Shuts down all registered thread pools.
-     */
-    public void shutdownAll() {
-        threadPools.forEach((name, threadPool) -> {
-            threadPool.shutdown();
-            try {
-                if (!threadPool.awaitTermination(60, TimeUnit.SECONDS)) {
-                    threadPool.shutdownNow();
-                }
-            } catch (InterruptedException e) {
-                threadPool.shutdownNow();
-                Thread.currentThread().interrupt();
-            }
-        });
-        threadPools.clear();
-    }
-
-    /**
-     * Shuts down a specific thread pool by name.
-     *
-     * @param name The name of the thread pool.
-     */
     public void shutdownThreadPool(String name) {
         ThreadPoolExecutor threadPool = threadPools.remove(name);
         if (threadPool != null) {
@@ -115,6 +109,31 @@ public class ThreadPoolRegistry {
                 threadPool.shutdownNow();
                 Thread.currentThread().interrupt();
             }
+            logger.info("Shutdown executor thread pool: {}", name);
         }
+    }
+
+    public void shutdownAllThreadPools() {
+        threadPools.forEach((name, pool) -> {
+            pool.shutdown();
+            try {
+                if (!pool.awaitTermination(60, TimeUnit.SECONDS)) {
+                    pool.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                pool.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
+            logger.info("Shutdown executor thread pool: {}", name);
+        });
+        threadPools.clear();
+    }
+
+    // ------------------- Unified Shutdown -------------------
+
+    public void shutdownAll() {
+        stopAllDedicatedThreads();
+        shutdownAllThreadPools();
+        logger.info("ExecutionRegistry shutdown complete.");
     }
 }
