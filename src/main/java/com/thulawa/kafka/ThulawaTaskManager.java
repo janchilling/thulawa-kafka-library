@@ -141,11 +141,9 @@ public class ThulawaTaskManager {
                 return;
             }
 
-            logger.info("Starting the Task Manager thread.");
+            logger.info("Starting the Task Manager dedicated thread.");
 
-            this.threadPoolRegistry
-                    .getThreadPool(ThreadPoolRegistry.THULAWA_TASK_MANAGER_THREAD_POOL)
-                    .submit(this::submitTasksForProcessing);
+            threadPoolRegistry.startDedicatedThread("Thulawa-Task-Manager-Thread", this::submitTasksForProcessing);
 
             this.state = State.ACTIVE;
         }

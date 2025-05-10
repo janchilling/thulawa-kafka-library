@@ -122,12 +122,11 @@ public class ThulawaScheduler implements Scheduler {
                 logger.warn("Scheduler thread is already running.");
                 return;
             }
-            if (this.adaptiveSchedulerEnabled) {
-                this.threadPoolRegistry.getThreadPool(ThreadPoolRegistry.THULAWA_SCHEDULING_THREAD_POOL).submit(this::runAdaptiveScheduler);
-            } else {
-                this.threadPoolRegistry.getThreadPool(ThreadPoolRegistry.THULAWA_SCHEDULING_THREAD_POOL).submit(this::runScheduler);
-            }
-            this.state = State.ACTIVE;
+            logger.info("Starting the Task Manager dedicated thread.");
+
+            threadPoolRegistry.startDedicatedThread("Thulawa-Scheduler-Thread", this::runScheduler);
+
+            this.state = ThulawaScheduler.State.ACTIVE;
         }
     }
 
