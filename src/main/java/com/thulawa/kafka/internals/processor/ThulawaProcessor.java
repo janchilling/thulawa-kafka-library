@@ -34,13 +34,13 @@ public class ThulawaProcessor<KIn, VIn, KOut, VOut> implements Processor<KIn, VI
     private ThulawaMetrics thulawaMetrics;
     private MicroBatcher microBatcher;
 
-    private Processor processor;
-    private ProcessorContext processorContext;
+    private final Processor<KIn, VIn, KOut, VOut> processor;
+    private ProcessorContext<KOut, VOut> processorContext;
 
     private JVMMetricsRecorder jvmMetricsRecorder;
     private ThulawaMetricsRecorder thulawaMetricsRecorder;
 
-    public ThulawaProcessor(Processor processor) {
+    public ThulawaProcessor(Processor<KIn, VIn, KOut, VOut> processor) {
         this.processor = processor;
     }
 
@@ -57,7 +57,7 @@ public class ThulawaProcessor<KIn, VIn, KOut, VOut> implements Processor<KIn, VI
         ThreadPoolRegistry threadPoolRegistry = ThreadPoolRegistry.getInstance((Integer) context.appConfigs().get(ThulawaConfigs.THULAWA_EXECUTOR_THREADPOOL_SIZE));
         this.thulawaTaskManager = new ThulawaTaskManager(threadPoolRegistry, this.thulawaMetrics, this.microBatcher, this.thulawaMetricsRecorder, (Boolean) context.appConfigs().get(ThulawaConfigs.PRIORITIZED_ADAPTIVE_SCHEDULER_ENABLED));
         this.thulawaScheduler = ThulawaScheduler.getInstance(this.queueManager, threadPoolRegistry,
-                this.thulawaTaskManager, thulawaMetrics, processor, (Set<String>) context.appConfigs().get(HIGH_PRIORITY_KEY_MAP),
+                this.thulawaTaskManager, thulawaMetrics, (Set<String>) context.appConfigs().get(HIGH_PRIORITY_KEY_MAP),
                 (Boolean) context.appConfigs().get(ThulawaConfigs.PRIORITIZED_ADAPTIVE_SCHEDULER_ENABLED)
         );
 
@@ -71,7 +71,7 @@ public class ThulawaProcessor<KIn, VIn, KOut, VOut> implements Processor<KIn, VI
     @Override
     public void process(Record<KIn, VIn> record) {
 
-        Object key = record.key();
+        KIn key = record.key();
         long receivedSystemTIme = processorContext.currentSystemTimeMs();
         Runnable runnableProcess = () ->{
             this.processor.process(record);
@@ -85,7 +85,6 @@ public class ThulawaProcessor<KIn, VIn, KOut, VOut> implements Processor<KIn, VI
 
     @Override
     public void close() {
-        // Shut down the thread pool
         logger.info("Processor closed. Processed records count: {}");
     }
 }

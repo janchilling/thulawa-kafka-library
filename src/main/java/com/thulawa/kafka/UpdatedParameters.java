@@ -3,7 +3,6 @@ package com.thulawa.kafka;
 import com.thulawa.kafka.internals.configs.ThulawaConfigs;
 import com.thulawa.kafka.internals.configs.ThulawaStreamsConfig;
 import com.thulawa.kafka.internals.metrics.ThulawaMetrics;
-import com.thulawa.kafka.internals.suppliers.ThulawaClientSupplier;
 import org.apache.kafka.common.metrics.JmxReporter;
 import org.apache.kafka.common.metrics.KafkaMetricsContext;
 import org.apache.kafka.common.metrics.MetricConfig;
