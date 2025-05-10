@@ -21,7 +21,7 @@ public class ThulawaConfigs extends AbstractConfig {
     public static final String MICRO_BATCHER_ENABLED = "micro.batcher.enabled";
     public static final String MICRO_BATCHER_ENABLED_DESCRIPTION = "Micro Batcher for submitting tasks to threads";
 
-    public static final int DEFAULT_EXECUTOR_THULAWA_THREADPOOL_SIZE = 10;
+    public static final int DEFAULT_EXECUTOR_THULAWA_THREADPOOL_SIZE = 0;
     public static final String THULAWA_EXECUTOR_THREADPOOL_SIZE = "thulawa.threadpool.size";
     public static final String THULAWA_EXECUTOR_THREADPOOL_SIZE_DESCRIPTION = "Size of the Thulawa Threadpool";
 

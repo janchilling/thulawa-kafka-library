@@ -27,15 +27,13 @@ public class ThulawaScheduler implements Scheduler {
     private final Set<String> highPriorityKeySet;
     private final ThulawaMetrics thulawaMetrics;
     private final MicroBatcher microbatcher;
-    private final boolean adaptiveSchedulerEnabled;
     private State state;
 
     private ThulawaScheduler(QueueManager queueManager,
                              ThreadPoolRegistry threadPoolRegistry,
                              ThulawaTaskManager thulawaTaskManager,
                              ThulawaMetrics thulawaMetrics,
-                             Set<String> highPriorityKeySet,
-                             boolean adaptiveSchedulerEnabled) {
+                             Set<String> highPriorityKeySet) {
         this.queueManager = queueManager;
         this.threadPoolRegistry = threadPoolRegistry;
         this.thulawaTaskManager = thulawaTaskManager;
@@ -44,23 +42,20 @@ public class ThulawaScheduler implements Scheduler {
         this.state = State.CREATED;
         this.microbatcher = new MicroBatcher(queueManager);
         this.queueManager.setSchedulerObserver(this);
-        this.adaptiveSchedulerEnabled = adaptiveSchedulerEnabled;
     }
 
     public static synchronized ThulawaScheduler getInstance(QueueManager queueManager,
                                                             ThreadPoolRegistry threadPoolRegistry,
                                                             ThulawaTaskManager thulawaTaskManager,
                                                             ThulawaMetrics thulawaMetrics,
-                                                            Set<String> highPriorityKeySet,
-                                                            boolean adaptiveSchedulerEnabled) {
+                                                            Set<String> highPriorityKeySet) {
         if (instance == null) {
             instance = new ThulawaScheduler(
                     queueManager,
                     threadPoolRegistry,
                     thulawaTaskManager,
                     thulawaMetrics,
-                    highPriorityKeySet,
-                    adaptiveSchedulerEnabled);
+                    highPriorityKeySet);
         }
         return instance;
     }
@@ -78,31 +73,6 @@ public class ThulawaScheduler implements Scheduler {
             }
         }
     }
-
-    public void runAdaptiveScheduler() {
-        this.state = State.ACTIVE;
-        logger.info("Scheduler is now ACTIVE");
-
-        while (this.state == State.ACTIVE) {
-            try {
-//                balanceAndProcessTasks();
-            } catch (Exception e) {
-                logger.error("Error in scheduler: {}", e.getMessage(), e);
-                Thread.currentThread().interrupt();
-            }
-        }
-    }
-
-//    private void balanceAndProcessTasks() {
-//        int highPriorityWeight = 2; // Give more weight to high-priority tasks
-//        int lowPriorityWeight = 1;
-//
-//        for (String highPriorityKey : highPriorityKeySet) {
-//            processBatch(highPriorityKey, "high-priority", highPriorityWeight);
-//        }
-//
-//        processBatch("low.priority.keys", "low-priority", lowPriorityWeight);
-//    }
 
     private void processBatch() {
         Object headQueueKey = queueManager.getEarliestQueueKey();
@@ -144,6 +114,6 @@ public class ThulawaScheduler implements Scheduler {
     }
 
     private enum State {
-        CREATED, ACTIVE, INACTIVE, DEAD
+        CREATED, ACTIVE
     }
 }
