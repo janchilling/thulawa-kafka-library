@@ -22,13 +22,17 @@ public class ThreadPoolRegistry {
     private final Map<String, Thread> dedicatedThreads = new ConcurrentHashMap<>();
     private final Map<String, ThreadPoolExecutor> threadPools = new ConcurrentHashMap<>();
 
-    private ThreadPoolRegistry(int executorCorePoolSize) {
-        registerExecutorThreadPool(THULAWA_EXECUTOR_THREAD_POOL, executorCorePoolSize, 10, 500);
+    private ThreadPoolRegistry(int threadPoolSize,
+                               boolean threadPoolEnabled) {
+        if (threadPoolEnabled){
+            registerExecutorThreadPool(THULAWA_EXECUTOR_THREAD_POOL, threadPoolSize, threadPoolSize, 500);
+        }
     }
 
-    public static synchronized ThreadPoolRegistry getInstance(int executorCorePoolSize) {
+    public static synchronized ThreadPoolRegistry getInstance(int threadPoolSize,
+                                                              boolean threadPoolEnabled) {
         if (instance == null) {
-            instance = new ThreadPoolRegistry(executorCorePoolSize);
+            instance = new ThreadPoolRegistry(threadPoolSize, threadPoolEnabled);
         }
         return instance;
     }

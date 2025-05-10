@@ -1,6 +1,6 @@
 # Thulawa Stream Processing Library
 
-This repository contains the implementation of the **Thulawa Stream Processing Library**, a Kafka Streams based event processing architecture using **virtual threads** for efficient task execution.
+This repository contains the implementation of the **Thulawa Stream Processing Library**, a Kafka Streams based event processing architecture using **virtual threads** or **Pre-Configured Executor Thread Pool** for efficient task execution.
 
 ## 📌 Architecture Overview
 
@@ -8,7 +8,7 @@ The system consists of three main components running in separate threads:
 
 1️⃣ **StreamThread** - Reads Kafka records, processes them into Thulawa events, and queues them based on keys.  
 2️⃣ **ThulawaSchedulingThread** - Batches events, schedules tasks, and submits them to the task manager.  
-3️⃣ **ThulawaTaskManagerThread** - Manages active tasks, tracks key states, and submits runnable processes to virtual threads.
+3️⃣ **ThulawaTaskManagerThread** - Manages active tasks, tracks key states, and submits runnable processes to virtual threads or a pre-configured Thread Pool.
 
 ## 🛠️ Components
 
@@ -30,7 +30,7 @@ The system consists of three main components running in separate threads:
 - Uses a **Key State HashMap** to determine if a key is currently being processed.
 - Submits runnable processes to **Virtual Threads**, ensuring key-based processing.
 
-## 🧵 Virtual Thread Processing
+## 🧵 Virtual Thread Processing and Executor Thread Pool
 - **Tasks are only submitted** if the key is marked as `NOT_PROCESSING`.
 - This ensures **efficient and parallel execution** without redundant processing.
 

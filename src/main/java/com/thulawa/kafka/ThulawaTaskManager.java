@@ -28,22 +28,22 @@ public class ThulawaTaskManager {
     private final Semaphore taskExecutionSemaphore = new Semaphore(100);
     private final AtomicLong totalSuccessCount = new AtomicLong(0);
     private final ConcurrentHashMap<Object, LongAdder> keyBasesSuccessCounter = new ConcurrentHashMap<>();
-    private final boolean microBatcherEnabled;
 
     private final Map<Object, KeyProcessingState> keySetState = new ConcurrentHashMap<>();
+    private final boolean threadPoolEnabled;
     private State state;
 
     public ThulawaTaskManager(ThreadPoolRegistry threadPoolRegistry,
                               ThulawaMetrics thulawaMetrics,
                               MicroBatcher microBatcher,
                               ThulawaMetricsRecorder thulawaMetricsRecorder,
-                              boolean microBatcherEnabled) {
+                              boolean threadPoolEnabled) {
         this.threadPoolRegistry = threadPoolRegistry;
         this.thulawaMetrics = thulawaMetrics;
         this.microBatcher = microBatcher;
         this.thulawaMetricsRecorder = thulawaMetricsRecorder;
-        this.microBatcherEnabled = microBatcherEnabled;
         this.state = State.CREATED;
+        this.threadPoolEnabled = threadPoolEnabled;
     }
 
     /**
@@ -91,37 +91,66 @@ public class ThulawaTaskManager {
                     continue;
                 }
 
-                CompletableFuture.runAsync(() -> {
-                            try {
-                                task.getThulawaEvents().forEach(thulawaEvent -> thulawaEvent.getRunnableProcess().run());
-                            } catch (Exception e) {
-                                logger.error("Task failed: {}", e.getMessage());
-                                throw new CompletionException(e);
-                            }
-                        }, Executors.newThreadPerTaskExecutor(Thread.ofVirtual().factory()))
-                        .whenComplete((r, t) -> {
-                            long endTime = System.nanoTime();
-                            long processingTime = TimeUnit.NANOSECONDS.toMillis(endTime - startTime);
-                            microBatcher.updateProcessingLatency(key, processingTime, totalEventsInTask);
+                if (threadPoolEnabled) {
+                    submitToThreadPool(key, task, startTime, totalEventsInTask);
+                } else {
+                    CompletableFuture.runAsync(() -> {
+                                try {
+                                    task.getThulawaEvents().forEach(thulawaEvent -> thulawaEvent.getRunnableProcess().run());
+                                } catch (Exception e) {
+                                    logger.error("Task failed: {}", e.getMessage());
+                                    throw new CompletionException(e);
+                                }
+                            }, Executors.newThreadPerTaskExecutor(Thread.ofVirtual().factory()))
+                            .whenComplete((r, t) -> {
+                                long endTime = System.nanoTime();
+                                long processingTime = TimeUnit.NANOSECONDS.toMillis(endTime - startTime);
+                                microBatcher.updateProcessingLatency(key, processingTime, totalEventsInTask);
 
-                            taskExecutionSemaphore.release();
-                            keySetState.put(key, KeyProcessingState.NOT_PROCESSING);
+                                taskExecutionSemaphore.release();
+                                keySetState.put(key, KeyProcessingState.NOT_PROCESSING);
 
-                            if (t == null) {
-                                incrementSuccessCount(key, totalEventsInTask);
-                                double avgLatency = microBatcher.getProcessingLatencyAvg(key);
+                                if (t == null) {
+                                    incrementSuccessCount(key, totalEventsInTask);
+                                    double avgLatency = microBatcher.getProcessingLatencyAvg(key);
 //                                logger.info("Updated processing latency average for {}: {} ms", key, avgLatency);
-                            } else {
-                                handleFailure(task, t);
-                            }
-                        })
-                        .exceptionally(ex -> {
-                            handleFatalException(task, ex);
-                            throw new RuntimeException(ex);
-                        });
+                                } else {
+                                    handleFailure(task, t);
+                                }
+                            })
+                            .exceptionally(ex -> {
+                                handleFatalException(task, ex);
+                                throw new RuntimeException(ex);
+                            });
+                }
             }
         }
     }
+
+    public void submitToThreadPool(Object key, ThulawaTask task, long startTime, int totalEventsInTask) {
+        ThreadPoolExecutor executor = threadPoolRegistry.getThreadPool(ThreadPoolRegistry.THULAWA_EXECUTOR_THREAD_POOL);
+        if (executor == null) {
+            logger.error("Executor thread pool not found: {}", ThreadPoolRegistry.THULAWA_EXECUTOR_THREAD_POOL);
+            return;
+        }
+
+        executor.submit(() -> {
+            try {
+                task.getThulawaEvents().forEach(event -> event.getRunnableProcess().run());
+                long endTime = System.nanoTime();
+                long processingTime = TimeUnit.NANOSECONDS.toMillis(endTime - startTime);
+                microBatcher.updateProcessingLatency(key, processingTime, totalEventsInTask);
+
+                incrementSuccessCount(key, totalEventsInTask);
+            } catch (Exception e) {
+                handleFailure(task, e);
+            } finally {
+                taskExecutionSemaphore.release();
+                keySetState.put(key, KeyProcessingState.NOT_PROCESSING);
+            }
+        });
+    }
+
 
     private void handleFatalException(ThulawaTask task, Throwable fatalException) {
         logger.error("Fatal exception in task: {}", fatalException.getMessage());

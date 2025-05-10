@@ -61,25 +61,27 @@ public class ThulawaProcessor<KIn, VIn, KOut, VOut> implements Processor<KIn, VI
                 this.queueManager
         );
 
+        int threadPoolSize = (Integer) context.appConfigs().get(ThulawaConfigs.THULAWA_EXECUTOR_THREADPOOL_SIZE);
+
+        boolean threadPoolEnabled = threadPoolSize > 0;
+
         ThreadPoolRegistry threadPoolRegistry = ThreadPoolRegistry.getInstance(
-                (Integer) context.appConfigs().get(ThulawaConfigs.THULAWA_EXECUTOR_THREADPOOL_SIZE)
-        );
+                threadPoolSize,
+                threadPoolEnabled);
 
         this.thulawaTaskManager = new ThulawaTaskManager(
                 threadPoolRegistry,
                 this.thulawaMetrics,
                 this.microBatcher,
                 this.thulawaMetricsRecorder,
-                (Boolean) context.appConfigs().get(ThulawaConfigs.PRIORITIZED_ADAPTIVE_SCHEDULER_ENABLED)
+                threadPoolEnabled
         );
 
         this.thulawaScheduler = ThulawaScheduler.getInstance(
                 this.queueManager, threadPoolRegistry,
                 this.thulawaTaskManager,
                 thulawaMetrics,
-                (Set<String>) context.appConfigs().get(HIGH_PRIORITY_KEY_MAP),
-                (Boolean) context.appConfigs().get(
-                ThulawaConfigs.PRIORITIZED_ADAPTIVE_SCHEDULER_ENABLED)
+                (Set<String>) context.appConfigs().get(HIGH_PRIORITY_KEY_MAP)
         );
     }
 
@@ -101,7 +103,6 @@ public class ThulawaProcessor<KIn, VIn, KOut, VOut> implements Processor<KIn, VI
 
         queueManager.addToKeyBasedQueue(key, thulawaEvent);
     }
-
 
     @Override
     public void close() {
