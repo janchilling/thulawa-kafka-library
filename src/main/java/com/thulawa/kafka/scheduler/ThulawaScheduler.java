@@ -24,7 +24,6 @@ public class ThulawaScheduler implements Scheduler {
     private final QueueManager queueManager;
     private final ThreadPoolRegistry threadPoolRegistry;
     private final ThulawaTaskManager thulawaTaskManager;
-    private final Processor processor;
     private final Set<String> highPriorityKeySet;
     private final ThulawaMetrics thulawaMetrics;
     private final MicroBatcher microbatcher;
@@ -33,12 +32,11 @@ public class ThulawaScheduler implements Scheduler {
 
     private ThulawaScheduler(QueueManager queueManager, ThreadPoolRegistry threadPoolRegistry,
                              ThulawaTaskManager thulawaTaskManager, ThulawaMetrics thulawaMetrics,
-                             Processor processor, Set<String> highPriorityKeySet, boolean adaptiveSchedulerEnabled) {
+                             Set<String> highPriorityKeySet, boolean adaptiveSchedulerEnabled) {
         this.queueManager = queueManager;
         this.threadPoolRegistry = threadPoolRegistry;
         this.thulawaTaskManager = thulawaTaskManager;
         this.thulawaMetrics = thulawaMetrics;
-        this.processor = processor;
         this.highPriorityKeySet = highPriorityKeySet;
         this.state = State.CREATED;
         this.microbatcher = new MicroBatcher(queueManager);
@@ -50,11 +48,10 @@ public class ThulawaScheduler implements Scheduler {
                                                             ThreadPoolRegistry threadPoolRegistry,
                                                             ThulawaTaskManager thulawaTaskManager,
                                                             ThulawaMetrics thulawaMetrics,
-                                                            Processor processor,
                                                             Set<String> highPriorityKeySet,
                                                             boolean adaptiveSchedulerEnabled) {
         if (instance == null) {
-            instance = new ThulawaScheduler(queueManager, threadPoolRegistry, thulawaTaskManager, thulawaMetrics, processor,
+            instance = new ThulawaScheduler(queueManager, threadPoolRegistry, thulawaTaskManager, thulawaMetrics,
                     highPriorityKeySet, adaptiveSchedulerEnabled);
         }
         return instance;
