@@ -20,6 +20,7 @@ import java.util.Set;
 
 import static com.thulawa.kafka.ThulawaKafkaStreams.THULAWA_METRICS_CONFIG;
 import static com.thulawa.kafka.internals.configs.ThulawaConfigs.HIGH_PRIORITY_KEY_MAP;
+import static com.thulawa.kafka.internals.configs.ThulawaConfigs.MICRO_BATCHER_ENABLED;
 
 /**
  * ThulawaProcessor processes Kafka records and manages key-based queues dynamically.
@@ -81,7 +82,8 @@ public class ThulawaProcessor<KIn, VIn, KOut, VOut> implements Processor<KIn, VI
                 this.queueManager, threadPoolRegistry,
                 this.thulawaTaskManager,
                 thulawaMetrics,
-                (Set<String>) context.appConfigs().get(HIGH_PRIORITY_KEY_MAP)
+                (Set<String>) context.appConfigs().get(HIGH_PRIORITY_KEY_MAP),
+                (Boolean) context.appConfigs().get(MICRO_BATCHER_ENABLED)
         );
     }
 
