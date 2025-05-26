@@ -29,11 +29,14 @@ public class ThulawaScheduler implements Scheduler {
     private final MicroBatcher microbatcher;
     private State state;
 
+    private final boolean microBatcherEnabled;
+
     private ThulawaScheduler(QueueManager queueManager,
                              ThreadPoolRegistry threadPoolRegistry,
                              ThulawaTaskManager thulawaTaskManager,
                              ThulawaMetrics thulawaMetrics,
-                             Set<String> highPriorityKeySet) {
+                             Set<String> highPriorityKeySet,
+                             boolean microBatcherEnabled) {
         this.queueManager = queueManager;
         this.threadPoolRegistry = threadPoolRegistry;
         this.thulawaTaskManager = thulawaTaskManager;
@@ -42,20 +45,23 @@ public class ThulawaScheduler implements Scheduler {
         this.state = State.CREATED;
         this.microbatcher = new MicroBatcher(queueManager);
         this.queueManager.setSchedulerObserver(this);
+        this.microBatcherEnabled = microBatcherEnabled;
     }
 
     public static synchronized ThulawaScheduler getInstance(QueueManager queueManager,
                                                             ThreadPoolRegistry threadPoolRegistry,
                                                             ThulawaTaskManager thulawaTaskManager,
                                                             ThulawaMetrics thulawaMetrics,
-                                                            Set<String> highPriorityKeySet) {
+                                                            Set<String> highPriorityKeySet,
+                                                            boolean microBatcherEnabled) {
         if (instance == null) {
             instance = new ThulawaScheduler(
                     queueManager,
                     threadPoolRegistry,
                     thulawaTaskManager,
                     thulawaMetrics,
-                    highPriorityKeySet);
+                    highPriorityKeySet,
+                    microBatcherEnabled);
         }
         return instance;
     }
@@ -77,11 +83,20 @@ public class ThulawaScheduler implements Scheduler {
     private void processBatch() {
         Object headQueueKey = queueManager.getEarliestQueueKey();
         if(headQueueKey != null){
-            List<ThulawaEvent> batch = microbatcher.fetchAdaptiveBatch(headQueueKey);
-            if (!batch.isEmpty()) {
-                ThulawaTask task = new ThulawaTask(ThreadPoolRegistry.THULAWA_EXECUTOR_THREAD_POOL,
-                        batch);
-                thulawaTaskManager.addActiveTask(headQueueKey, task);
+            if(!microBatcherEnabled){
+                List<ThulawaEvent> batch = microbatcher.fetchBatch(headQueueKey, 1);
+                if (!batch.isEmpty()) {
+                    ThulawaTask task = new ThulawaTask(ThreadPoolRegistry.THULAWA_EXECUTOR_THREAD_POOL,
+                            batch);
+                    thulawaTaskManager.addActiveTask(headQueueKey, task);
+                }
+            } else{
+                List<ThulawaEvent> batch = microbatcher.fetchAdaptiveBatch(headQueueKey);
+                if (!batch.isEmpty()) {
+                    ThulawaTask task = new ThulawaTask(ThreadPoolRegistry.THULAWA_EXECUTOR_THREAD_POOL,
+                            batch);
+                    thulawaTaskManager.addActiveTask(headQueueKey, task);
+                }
             }
         }
     }
