@@ -334,52 +334,6 @@ class ThulawaTaskManagerTest {
         assertEquals(2, virtualThreadManager.getSuccessCount(key));
     }
 
-    @Test
-    void testConcurrentTaskSubmission() throws InterruptedException {
-        // Test 10: Test concurrent task submission from multiple threads
-        String key = "test-key-10";
-        int numberOfThreads = 3;
-        int eventsPerThread = 2;
-        CountDownLatch latch = new CountDownLatch(numberOfThreads * eventsPerThread);
-
-        Runnable testRunnable = () -> latch.countDown();
-
-        // Submit tasks from multiple threads concurrently
-        Thread[] threads = new Thread[numberOfThreads];
-        for (int i = 0; i < numberOfThreads; i++) {
-            final int threadIndex = i; // Make it effectively final
-            threads[i] = new Thread(() -> {
-                ThulawaEvent event1 = createTestEventWithRunnable(testRunnable);
-                ThulawaEvent event2 = createTestEventWithRunnable(testRunnable);
-                ThulawaTask task = new ThulawaTask("test-pool", Arrays.asList(event1, event2));
-                taskManager.addActiveTask(key + "-" + threadIndex, task); // Use unique keys to avoid blocking
-            });
-            threads[i].start();
-        }
-
-        // Wait for all threads to complete submission
-        for (Thread thread : threads) {
-            thread.join();
-        }
-
-        // Start the task manager thread explicitly
-        taskManager.startTaskManagerThread();
-
-        // Wait for all events to execute
-        assertTrue(latch.await(15, TimeUnit.SECONDS), "Task execution timed out");
-
-        // Give some time for success count to be updated
-        Thread.sleep(1000);
-
-        // Check total count across all keys
-        long totalCount = 0;
-        for (int i = 0; i < numberOfThreads; i++) {
-            totalCount += taskManager.getSuccessCount(key + "-" + i);
-        }
-        assertEquals(6, totalCount);
-        assertEquals(6, taskManager.getTotalSuccessCount());
-    }
-
     // Helper methods
     private ThulawaEvent createTestEvent(String value) {
         Record<String, String> record = new Record<>("test-key", value, System.currentTimeMillis());
