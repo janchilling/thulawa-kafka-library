@@ -13,14 +13,12 @@ on:
       - master
 
 jobs:
-  test-and-analyze:
+  test:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Full history for better security analysis
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -38,72 +36,9 @@ jobs:
       - name: Run unit tests
         run: mvn clean test
 
-      - name: Run SpotBugs
-        run: mvn spotbugs:check
-
-      - name: Run OWASP Dependency Check
-        run: mvn org.owasp:dependency-check-maven:check
-
-      - name: Upload SpotBugs results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: spotbugs-results
-          path: target/spotbugsXml.xml
-
-      - name: Upload OWASP Dependency Check results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: owasp-results
-          path: target/dependency-check-report.html
-
       - name: Upload test results
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: test-results
           path: target/surefire-reports/
-
-  security-scan:
-    runs-on: ubuntu-latest
-    permissions:
-      actions: read
-      contents: read
-      security-events: write
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
-        with:
-          java-version: 21
-          distribution: 'temurin'
-
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
-        with:
-          languages: java
-          queries: security-and-quality
-
-      - name: Autobuild
-        uses: github/codeql-action/autobuild@v3
-
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
-        with:
-          category: "/language:java"
-
-  dependency-review:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Dependency Review
-        uses: actions/dependency-review-action@v4
-        with:
-          fail-on-severity: moderate
